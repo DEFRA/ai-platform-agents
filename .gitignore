@@ -1,0 +1,10 @@
+.DS_Store
+node_modules
+coverage
+.copilot-tracking/
+.vscode/*
+!.vscode/mcp.json
+.env
+.env.*
+!.env.example
+lcov.info
