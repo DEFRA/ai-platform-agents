@@ -223,8 +223,7 @@ function securitySteps(repo, base) {
   }
   steps.push({
     id: 'secrets',
-    command: `git diff ${base} | gitleaks stdin --no-banner --redact`,
-    cwd: root,
+    builtin: () => secretsScan(root, base),
     tool: 'gitleaks'
   })
   return steps
@@ -443,12 +442,56 @@ function toolAvailable(tool, cache) {
   return cache[tool]
 }
 
+// Returns null when the ref cannot be resolved, so dependent checks are blocked rather than passed.
 function mergeBase(root, ref) {
   const found = run(`git merge-base ${ref} HEAD`, root)
-  return found.status === 0 && found.stdout.trim() ? found.stdout.trim() : ref
+  if (found.status === 0 && found.stdout.trim()) return found.stdout.trim()
+  return run(`git rev-parse --verify --quiet ${ref}`, root).status === 0
+    ? ref
+    : null
+}
+
+const BASE_BLOCKED =
+  'comparison base not resolved (check --base and fetch history)'
+
+// Scans tracked changes and non-ignored untracked files, without staging anything. Output stays redacted.
+function secretsScan(root, base) {
+  if (!base) return { status: 1, stdout: '', output: BASE_BLOCKED }
+  const diff = run(`git diff ${base}`, root)
+  if (diff.status !== 0) return { status: 1, stdout: '', output: diff.output }
+  const listed = spawnSync(
+    'git',
+    ['ls-files', '--others', '--exclude-standard', '-z'],
+    { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }
+  )
+  if (listed.status !== 0)
+    return { status: 1, stdout: '', output: listed.stderr ?? '' }
+  const untracked = listed.stdout.split('\0').filter(Boolean)
+  const added = untracked.map(
+    (file) =>
+      spawnSync('git', ['diff', '--no-index', '--', '/dev/null', file], {
+        cwd: root,
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024
+      }).stdout ?? ''
+  )
+  const scan = spawnSync('gitleaks', ['stdin', '--no-banner', '--redact'], {
+    cwd: root,
+    input: [diff.stdout, ...added].join('\n'),
+    encoding: 'utf8',
+    timeout: STEP_TIMEOUT_MS,
+    maxBuffer: 64 * 1024 * 1024
+  })
+  const output = `${scan.stdout ?? ''}${scan.stderr ?? ''}`
+  return {
+    status: scan.error ? 1 : scan.status,
+    stdout: scan.stdout ?? '',
+    output: scan.error ? `${scan.error.message}\n${output}` : output
+  }
 }
 
 function changedFiles(root, base) {
+  if (!base) return null
   const diff = run(`git diff --name-only ${base}`, root)
   if (diff.status !== 0) return null
   const untracked = run('git ls-files --others --exclude-standard', root)
@@ -528,9 +571,12 @@ function coverageFor(root, report, changed, since) {
     ? `  (below target: ${totalBelow.join(', ')})`
     : ''
   const label = prefix ? 'checks ' : 'repo '
-  const misses = changed ? changedFileMisses(root, files, prefix, changed) : []
+  const misses = changed
+    ? changedFileMisses(root, files, prefix, changed)
+    : [`  changed-file coverage blocked: ${BASE_BLOCKED}`]
   const show = (value) => value ?? 'n/a'
   return {
+    measured: true,
     lines: [
       `COVERAGE ${label}lines ${show(total.lines)} | branches ${show(total.branches)} | functions ${show(total.functions)}${note}`,
       ...misses
@@ -545,16 +591,27 @@ const COVERAGE_REPORTS = [
   { prefix: 'checks/', file: 'checks/coverage/lcov.info' }
 ]
 
-function coverageReport(root, changed, since) {
+function coverageReport(root, changed, since, required) {
   const parts = COVERAGE_REPORTS.map((report) =>
     coverageFor(root, report, changed, since)
   )
   const lines = parts.flatMap((part) => part.lines)
+  const below = parts.reduce((sum, part) => sum + part.below, 0)
+  if (required && !parts.some((part) => part.measured)) {
+    return {
+      lines: [...lines, 'COVERAGE missing: no fresh lcov.info from the tests'],
+      below: below + 1
+    }
+  }
   return {
     lines: lines.length ? lines : ['COVERAGE not measured (no lcov.info)'],
-    below: parts.reduce((sum, part) => sum + part.below, 0)
+    below
   }
 }
+
+// Coverage is required when the repo runs unit tests (not WebdriverIO journey tests).
+const requiresCoverage = (repo) =>
+  Boolean(repo.scripts.test) && !/\bwdio\b/.test(repo.scripts.test)
 
 function formatResult(result) {
   const parts = [result.result.padEnd(4), result.id]
@@ -650,7 +707,8 @@ export function runGates(args) {
   if (!/^[\w./-]+$/.test(ref)) throw new Error(`Unsafe --base value: ${ref}`)
   const base = mergeBase(root, ref)
   const name = basename(root)
-  const steps = planGates(readRepo(root), mode, base)
+  const repo = readRepo(root)
+  const steps = planGates(repo, mode, base)
 
   if (args.includes('--dry-run')) {
     const describe = (step) =>
@@ -664,7 +722,12 @@ export function runGates(args) {
   const since = Date.now() - 1000
   const cache = {}
   const results = steps.map((step) => runStep(step, name, outDir, cache))
-  const { lines, below } = coverageReport(root, changedFiles(root, base), since)
+  const { lines, below } = coverageReport(
+    root,
+    changedFiles(root, base),
+    since,
+    requiresCoverage(repo)
+  )
   const summary = summarise(name, mode, results, lines, below)
   writeFileSync(join(outDir, `${name}-summary.txt`), summary)
   return {

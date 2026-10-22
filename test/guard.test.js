@@ -310,3 +310,122 @@ test('CLI exits 2 with a reason on deny, 0 otherwise, and tolerates bad input', 
   assert.equal(bad.status, 0)
   assert.equal(bad.stdout, '{}')
 })
+
+test('handles quoted git -C paths containing spaces', () => {
+  const repo = '"/r/work space/ai-platform-frontend"'
+  assert.equal(
+    decide(terminal(`git -C ${repo} push --force origin main`)).decision,
+    'deny'
+  )
+  assert.equal(
+    decide(terminal(`git -C ${repo} push origin main`)).decision,
+    'ask'
+  )
+  assert.equal(decide(terminal(`git -C ${repo} reset --hard`)).decision, 'deny')
+  assert.equal(
+    decide(terminal(`git -c 'a b=c' push -f origin main`)).decision,
+    'deny'
+  )
+})
+
+test('checks patch rename destinations', () => {
+  const patch = (to) => ({
+    tool_name: 'apply_patch',
+    tool_input: {
+      input: `*** Begin Patch\n*** Update File: /r/ai-platform-agents/.copilot-tracking/runs/x/log.md\n*** Move to: ${to}\n*** End Patch`
+    }
+  })
+  assert.equal(
+    decide(patch('/r/ai-platform-backend-api/src/a.js'), 'reviewer').decision,
+    'deny'
+  )
+  assert.equal(
+    decide(
+      patch('/r/ai-platform-tenants/environments/infradev/x.json'),
+      'developer'
+    ).decision,
+    'deny'
+  )
+})
+
+test('resolves relative paths and dot segments before authorising', () => {
+  assert.equal(
+    decide(
+      {
+        ...edit('environments/infradev/x.json'),
+        cwd: '/r/ai-platform-tenants'
+      },
+      'platform'
+    ).decision,
+    'deny'
+  )
+  assert.equal(
+    decide(
+      edit('/r/ai-platform-frontend/../ai-platform-infra/main.tf'),
+      'developer'
+    ).decision,
+    'deny'
+  )
+  assert.equal(
+    decide({ ...edit('src/a.js'), cwd: '/r/ai-platform-frontend' }, 'developer')
+      .decision,
+    null
+  )
+})
+
+test('applies role edit boundaries to terminal writes', () => {
+  const code = '/r/ai-platform-backend-api/src/a.js'
+  assert.equal(
+    decide(terminal(`printf x > ${code}`), 'reviewer').decision,
+    'deny'
+  )
+  assert.equal(
+    decide(terminal(`echo x | tee -a ${code}`), 'releaser').decision,
+    'deny'
+  )
+  assert.equal(
+    decide(terminal(`Set-Content -Path ${code} -Value x`), 'reviewer').decision,
+    'deny'
+  )
+  assert.equal(
+    decide(terminal(`sed -i s/a/b/ ${code}`), 'reviewer').decision,
+    'deny'
+  )
+  assert.equal(
+    decide(terminal(`cp a.txt ${code}`), 'reviewer').decision,
+    'deny'
+  )
+  assert.equal(
+    decide(
+      terminal(
+        `npm test > /r/ai-platform-agents/.copilot-tracking/runs/x/log.md 2>&1`
+      ),
+      'reviewer'
+    ).decision,
+    null
+  )
+  assert.equal(
+    decide(terminal('npm test > /tmp/out.txt 2>/dev/null'), 'reviewer')
+      .decision,
+    null
+  )
+  assert.equal(
+    decide(terminal(`printf x > ${code}`), 'developer').decision,
+    null
+  )
+  assert.equal(
+    decide(
+      terminal('printf x > /r/ai-platform-agents/scripts/aip-guard.mjs'),
+      'developer'
+    ).decision,
+    'ask'
+  )
+})
+
+test('treats MCP push_files as an edit restricted by role', () => {
+  const push = {
+    tool_name: 'mcp_github_push_files',
+    tool_input: { files: [{ path: 'src/a.js', content: 'b' }] }
+  }
+  assert.equal(decide(push, 'reviewer').decision, 'deny')
+})

@@ -156,10 +156,8 @@ test('full gates add audit, scans and linters; the secrets scan uses the base', 
   const secrets = planGates(node, 'full', 'abc123').find(
     (step) => step.id === 'secrets'
   )
-  assert.match(
-    secrets.command,
-    /git diff abc123 \| gitleaks stdin --no-banner --redact/
-  )
+  assert.equal(secrets.tool, 'gitleaks')
+  assert.equal(typeof secrets.builtin, 'function')
 })
 
 test('Terraform and checks steps are planned for infra', () => {

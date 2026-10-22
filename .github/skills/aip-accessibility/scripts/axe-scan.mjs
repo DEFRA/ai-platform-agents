@@ -119,7 +119,7 @@ export async function scanUrls(urls, { javaScriptEnabled = true } = {}) {
 export function formatResults(results) {
   return results
     .flatMap((r) => [
-      `${r.violations.length ? 'FAIL' : 'PASS'} ${r.url} [${r.status}] "${r.title}" reflow@320px ${r.reflow ? 'ok' : 'FAIL'}`,
+      `${r.violations.length || !r.reflow ? 'FAIL' : 'PASS'} ${r.url} [${r.status}] "${r.title}" reflow@320px ${r.reflow ? 'ok' : 'FAIL'}`,
       ...summariseViolations(r.violations).map((line) => `     ${line}`)
     ])
     .join('\n')

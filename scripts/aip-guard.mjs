@@ -2,12 +2,12 @@
 // PreToolUse guard for the AIP agents. Reads one hook event on stdin (Local or Copilot harness shape)
 // and denies, or asks the user to confirm, unsafe commands and out-of-role edits.
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { posix, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const TF = String.raw`\bterraform(?:\.exe)?\s+(?:-\S+\s+)*`
 // `git -C <path> push` and `git -c k=v push` must not slip past the push rules.
-const GIT = String.raw`\bgit(?:\.exe)?(?:\s+-[cC]\s+\S+)*\s+`
+const GIT = String.raw`\bgit(?:\.exe)?(?:\s+-[cC]\s+(?:"[^"]*"|'[^']*'|\S+))*\s+`
 const git = (rest, flags) => new RegExp(`${GIT}${rest}`, flags)
 
 const DENY_COMMANDS = [
@@ -156,7 +156,7 @@ export function collectStrings(input) {
       if (/(path|file|uri|dir)s?$/i.test(key)) paths.push(value)
       if (/^(input|patch)$/i.test(key)) {
         for (const match of value.matchAll(
-          /^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm
+          /^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$/gm
         )) {
           paths.push(match[1].trim())
         }
@@ -175,12 +175,14 @@ export function collectStrings(input) {
   return { commands, paths }
 }
 
-function normalisePath(path) {
-  const forward = path
-    .replace(/^file:\/+/i, '')
-    .replace(/\\/g, '/')
-    .toLowerCase()
-  return `/${forward.replace(/^\/+/, '')}`
+function normalisePath(path, cwd) {
+  let forward = path.replace(/^file:\/+/i, '').replace(/\\/g, '/')
+  const absolute = /^([a-z]:)?\//i.test(forward) || /^[a-z]:/i.test(forward)
+  if (!absolute && cwd) {
+    forward = `${cwd.replace(/\\/g, '/')}/${forward}`
+  }
+  const collapsed = posix.normalize(`/${forward.replace(/^\/+/, '')}`)
+  return collapsed.toLowerCase()
 }
 
 function isSecretEnvFile(path) {
@@ -201,7 +203,7 @@ function classify(tool) {
     return 'terminal'
   if (/read|view|open|get_file|cat/.test(name)) return 'read'
   if (
-    /create|edit|replace|write|insert|patch|delete|rename|move|mkdir|directory/.test(
+    /push.?files|create|edit|replace|write|insert|patch|delete|rename|move|mkdir|directory/.test(
       name
     )
   )
@@ -209,7 +211,66 @@ function classify(tool) {
   return 'other'
 }
 
-function checkCommand(command) {
+const SAFE_WRITE_TARGET =
+  /^(\/dev\/(null|stdout|stderr)|\/tmp\/|\/var\/tmp\/|\/appdata\/local\/temp\/|\/windows\/temp\/|\/?nul$|\/?\$null$)/i
+
+const unquote = (token) => token.replace(/^['"]|['"]$/g, '')
+
+/**
+ * Finds files a shell command writes to: redirections, tee, copy/move/set-content style commands and sed -i.
+ * @param {string} command Command text.
+ * @returns {string[]}
+ */
+export function writeTargets(command) {
+  const targets = []
+  const token = String.raw`("[^"]+"|'[^']+'|[^\s;&|<>()]+)`
+  for (const m of command.matchAll(
+    new RegExp(String.raw`(?<![<>&\d])\d?>>?\s*${token}`, 'g')
+  )) {
+    if (!m[1].startsWith('&')) targets.push(unquote(m[1]))
+  }
+  for (const m of command.matchAll(
+    new RegExp(String.raw`\btee\s+(?:-\S+\s+)*${token}`, 'gi')
+  )) {
+    targets.push(unquote(m[1]))
+  }
+  const named = String.raw`(?:set-content|add-content|out-file|new-item|clear-content)\b[^\n;|&]*?(?:-(?:file)?path\s+|-literalpath\s+)?${token}`
+  for (const m of command.matchAll(new RegExp(named, 'gi'))) {
+    targets.push(unquote(m[1]))
+  }
+  for (const m of command.matchAll(
+    new RegExp(
+      String.raw`\b(?:cp|mv|copy-item|move-item|install|touch|mkdir|rm|remove-item)\b([^\n;|&]*)`,
+      'gi'
+    )
+  )) {
+    const args = m[1].match(new RegExp(token, 'g')) ?? []
+    const operands = args.map(unquote).filter((a) => !a.startsWith('-'))
+    const last = operands.at(-1)
+    if (last) targets.push(last)
+  }
+  for (const m of command.matchAll(
+    new RegExp(
+      String.raw`\bsed\s+(?:-\S+\s+)*-i\S*\s+(?:-e\s+)?${token}\s+${token}`,
+      'g'
+    )
+  )) {
+    targets.push(unquote(m[2]))
+  }
+  return targets
+}
+
+function checkWrites(command, role, cwd) {
+  for (const raw of writeTargets(command)) {
+    const path = normalisePath(raw, cwd)
+    if (SAFE_WRITE_TARGET.test(path)) continue
+    const result = checkPath(raw, 'edit', role, cwd)
+    if (result) return result
+  }
+  return null
+}
+
+function checkCommand(command, role, cwd) {
   const text = command.replace(/\\/g, '/')
   for (const [pattern, reason] of DENY_COMMANDS) {
     if (pattern.test(text)) return { decision: 'deny', reason }
@@ -217,11 +278,11 @@ function checkCommand(command) {
   if (STATE_PATH.test(text.toLowerCase()) && STATE_WRITE.test(text))
     return { decision: 'deny', reason: STATE_REASON }
   if (mentionsSecretEnv(text)) return { decision: 'deny', reason: ENV_REASON }
-  return null
+  return checkWrites(text, role, cwd)
 }
 
-function checkPath(raw, kind, role) {
-  const path = normalisePath(raw)
+function checkPath(raw, kind, role, cwd) {
+  const path = normalisePath(raw, cwd)
   if (isSecretEnvFile(path)) return { decision: 'deny', reason: ENV_REASON }
   if (kind !== 'edit') return null
   if (STATE_PATH.test(path)) return { decision: 'deny', reason: STATE_REASON }
@@ -252,10 +313,11 @@ export function decide(event, role) {
     if (pattern.test(tool)) return { decision: 'deny', reason }
   }
   const kind = classify(tool)
+  const cwd = typeof event?.cwd === 'string' ? event.cwd : undefined
   const { commands, paths } = collectStrings(input)
   const found = [
-    ...commands.map(checkCommand),
-    ...paths.map((path) => checkPath(path, kind, role))
+    ...commands.map((command) => checkCommand(command, role, cwd)),
+    ...paths.map((path) => checkPath(path, kind, role, cwd))
   ].filter(Boolean)
   const denied = found.find((result) => result.decision === 'deny')
   if (denied) return denied

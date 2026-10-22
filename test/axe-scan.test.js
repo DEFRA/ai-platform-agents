@@ -14,18 +14,24 @@ import {
   summariseViolations
 } from '../.github/skills/aip-accessibility/scripts/axe-scan.mjs'
 
-const toolsDir = fileURLToPath(
-  new URL(
-    '../../ai-platform-discovery-docs/node_modules/@axe-core/playwright',
-    import.meta.url
-  )
-)
+const toolsFrom =
+  process.env.AIP_AXE_FROM ??
+  fileURLToPath(new URL('../../ai-platform-discovery-docs', import.meta.url))
+const toolsDir = join(toolsFrom, 'node_modules/@axe-core/playwright')
+const browserTestsRequired = process.env.AIP_REQUIRE_BROWSER_TESTS === '1'
+
+test('browser test prerequisites are installed when required', () => {
+  if (browserTestsRequired)
+    assert.ok(existsSync(toolsDir), `missing ${toolsDir}`)
+})
 
 test(
   'scans a real page and reports violations, reflow and no-JavaScript results',
   {
     skip:
-      !existsSync(toolsDir) && 'needs ai-platform-discovery-docs dependencies'
+      !browserTestsRequired &&
+      !existsSync(toolsDir) &&
+      'needs ai-platform-discovery-docs dependencies or AIP_AXE_FROM'
   },
   async () => {
     const html =
@@ -79,10 +85,23 @@ test('formats a clean page as one PASS line', () => {
       status: 200,
       title: 'Home',
       violations: [],
+      reflow: true
+    }
+  ])
+  assert.equal(line, 'PASS http://a [200] "Home" reflow@320px ok')
+})
+
+test('labels a page FAIL when reflow fails even without violations', () => {
+  const line = formatResults([
+    {
+      url: 'http://a',
+      status: 200,
+      title: 'Home',
+      violations: [],
       reflow: false
     }
   ])
-  assert.equal(line, 'PASS http://a [200] "Home" reflow@320px FAIL')
+  assert.equal(line, 'FAIL http://a [200] "Home" reflow@320px FAIL')
 })
 
 test('keeps every URL when no output file is given', () => {

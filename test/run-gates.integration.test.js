@@ -1,9 +1,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  utimesSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 
 import { runGates } from '../.github/skills/aip-quality-gates/scripts/run-gates.mjs'
 
@@ -48,7 +54,7 @@ function fakeRepo() {
   return root
 }
 
-test('ignores coverage the tests did not write in this run, and passes when every gate passes', () => {
+test('ignores coverage the tests did not write in this run, and fails when coverage is required', () => {
   const root = mkdtempSync(join(tmpdir(), 'aip-clean-'))
   writeFileSync(
     join(root, 'package.json'),
@@ -74,8 +80,9 @@ test('ignores coverage the tests did not write in this run, and passes when ever
     join(root, 'gates-out')
   ])
   assert.match(quick.output, /COVERAGE ignored stale coverage\/lcov\.info/)
-  assert.match(quick.output, /RESULT PASS/)
-  assert.equal(quick.exitCode, 0)
+  assert.match(quick.output, /COVERAGE missing: no fresh lcov\.info/)
+  assert.match(quick.output, /RESULT FAIL .*1 coverage misses/)
+  assert.equal(quick.exitCode, 1)
 
   const plan = runGates([
     '--repo',
@@ -152,4 +159,103 @@ test('refuses an unsafe base ref', () => {
     () => runGates(['--repo', '.', '--base', 'main;rm -rf /']),
     /Unsafe --base/
   )
+})
+
+test('passes with no coverage report when the repo runs no unit tests', () => {
+  const root = mkdtempSync(join(tmpdir(), 'aip-notests-'))
+  writeFileSync(
+    join(root, 'package.json'),
+    JSON.stringify({ name: 'none', scripts: {}, dependencies: { x: '1.0.0' } })
+  )
+  const { output, exitCode } = runGates([
+    '--repo',
+    root,
+    '--quick',
+    '--base',
+    'HEAD',
+    '--out',
+    join(root, 'gates-out')
+  ])
+  assert.match(output, /COVERAGE not measured/)
+  assert.equal(exitCode, 0)
+})
+
+test('blocks changed-file coverage and the secrets scan when the base cannot be resolved', () => {
+  const root = fakeRepo()
+  const fakeBin = installFakeGitleaks()
+  const { output, exitCode } = runGates([
+    '--repo',
+    root,
+    '--full',
+    '--base',
+    'origin/mian',
+    '--out',
+    join(root, 'gates-out')
+  ])
+  assert.equal(exitCode, 1)
+  assert.match(
+    output,
+    /changed-file coverage blocked: comparison base not resolved/
+  )
+  assert.match(output, /FAIL secrets/)
+  assert.match(output, /comparison base not resolved/)
+  restorePath(fakeBin)
+})
+
+function installFakeGitleaks() {
+  const dir = mkdtempSync(join(tmpdir(), 'aip-bin-'))
+  const script = [
+    "if (process.argv.includes('--version')) process.exit(0)",
+    "let text = ''",
+    "process.stdin.on('data', (chunk) => (text += chunk))",
+    "process.stdin.on('end', () => {",
+    "  if (text.includes('SYNTHETIC_SECRET_VALUE')) {",
+    "    console.log('leaks found: REDACTED')",
+    '    process.exit(1)',
+    '  }',
+    '})'
+  ].join('\n')
+  writeFileSync(join(dir, 'gitleaks.mjs'), script)
+  writeFileSync(
+    join(dir, 'gitleaks'),
+    `#!/bin/sh\nexec node "${join(dir, 'gitleaks.mjs')}" "$@"\n`
+  )
+  chmodSync(join(dir, 'gitleaks'), 0o755)
+  writeFileSync(
+    join(dir, 'gitleaks.cmd'),
+    `@node "${join(dir, 'gitleaks.mjs')}" %*\r\n`
+  )
+  const previous = process.env.PATH
+  process.env.PATH = `${dir}${delimiter}${previous}`
+  return previous
+}
+
+function restorePath(previous) {
+  process.env.PATH = previous
+}
+
+test('the secrets scan reads untracked files without staging them, and passes a clean tree', () => {
+  const previous = installFakeGitleaks()
+  try {
+    const root = fakeRepo()
+    const options = ['--repo', root, '--full', '--base', 'HEAD', '--out']
+    const clean = runGates([...options, join(root, 'out-clean')])
+    assert.match(clean.output, /PASS secrets/)
+
+    writeFileSync(
+      join(root, 'src', 'config.js'),
+      "export const token = 'SYNTHETIC_SECRET_VALUE'\n"
+    )
+    const leaky = runGates([...options, join(root, 'out-leaky')])
+    assert.match(leaky.output, /FAIL secrets/)
+    assert.match(leaky.output, /leaks found: REDACTED/)
+    assert.doesNotMatch(leaky.output, /SYNTHETIC_SECRET_VALUE/)
+    const staged = execSync('git diff --cached --name-only', {
+      cwd: root,
+      encoding: 'utf8'
+    })
+    assert.equal(staged.trim(), '')
+  } finally {
+    restorePath(previous)
+  }
 })
