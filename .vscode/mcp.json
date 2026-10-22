@@ -1,0 +1,22 @@
+{
+  "inputs": [
+    {
+      "id": "sonarqube-token",
+      "type": "promptString",
+      "description": "SonarQube Cloud user token (read-only use)",
+      "password": true
+    }
+  ],
+  "servers": {
+    "sonarqube": {
+      "type": "http",
+      "url": "https://api.sonarcloud.io/mcp",
+      "headers": {
+        "Authorization": "Bearer ${input:sonarqube-token}",
+        "SONARQUBE_ORG": "defra",
+        "SONARQUBE_READ_ONLY": "true",
+        "SONARQUBE_TOOLSETS": "issues,quality-gates,measures,coverage,security-hotspots,dependency-risks,projects,rules"
+      }
+    }
+  }
+}
