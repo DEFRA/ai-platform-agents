@@ -13,8 +13,11 @@ tools:
     web,
     browser,
     vscode/askQuestions,
+    vscode/memory,
     sonarqube/*,
-    github/*
+    github/*,
+    githubRepo,
+    githubTextSearch
   ]
 agents: ['Explore']
 model: ['Claude Sonnet 5.5 (copilot)', 'Claude Sonnet 5 (copilot)']

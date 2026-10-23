@@ -67,7 +67,9 @@ PR groups: P1 = {one purpose, e.g. "credential expiry feature (backend)"}. Group
 
 ## Docs and record
 
-{Which plan, README, implemented-features and discovery-docs updates the change needs.}
+- Plan record per PR: {P1: file and entry, e.g. `ai-platform-frontend/docs/plans/implemented/NN-*.md` and `implemented-features.md`; remaining parts in `remaining.md`}
+- Same-PR docs: {READMEs, instructions, `build-plan.md`}
+- End-of-run docs PR: {discovery design and built state; frontend `docs/plans/` if no work PR touched the frontend}
 
 ## Rollout
 

@@ -3,7 +3,21 @@ name: AIP Platform Engineer
 description: 'Builds AI Platform platform and DevOps changes from an approved plan: Terraform modules and roots, schemas, catalogue and aip-checks in ai-platform-infra; reusable workflows, actions and scripts in ai-platform-workflows; environment parameters in ai-platform-environments. Offline tests first, plan reasoning, blast radius and change impact stated, never applies. Use for Terraform, IaC, GitHub Actions, CI/CD, GitOps, pipelines, environments, APIM policy or infra fixes.'
 argument-hint: 'Run folder and task ids, or finding ids to fix'
 tools:
-  [read, search, edit, execute, agent, todo, web, vscode/askQuestions, github/*]
+  [
+    read,
+    search,
+    edit,
+    execute,
+    agent,
+    todo,
+    web,
+    browser,
+    vscode/askQuestions,
+    vscode/memory,
+    github/*,
+    githubRepo,
+    githubTextSearch
+  ]
 agents: ['Explore']
 model: ['Claude Sonnet 5.5 (copilot)', 'Claude Sonnet 5 (copilot)']
 reasoning-effort: high

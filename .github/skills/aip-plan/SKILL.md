@@ -6,7 +6,14 @@ license: OGL-UK-3.0
 
 # Planning
 
-Input: `brief.md`. Output: `plan.md` (template in [run-files.md](../aip-handoff/references/run-files.md)) and, for a new or changed plan item, the entry in `ai-platform-frontend/docs/plans/remaining.md`.
+Input: `brief.md`. Output: `plan.md` (template in [run-files.md](../aip-handoff/references/run-files.md)), including the plan record: which committed plan file each PR updates.
+
+## Plan record in Git
+
+`plan.md` is git-ignored working state. The plan reaches Git inside the work, never as a PR of its own:
+
+- Each work PR carries its plan record: the item in `ai-platform-frontend/docs/plans/` (`implemented/` for what it builds, `remaining.md` for what is left), or for infra or workflow work with no frontend PR, the owning repo's plan file (for example `ai-platform-infra/docs/*-plan.md`).
+- One docs PR per run, at the end, once the work is merged or released: the discovery-site design (if any) and built state, plus the frontend `docs/plans/` update when no work PR touched the frontend.
 
 ## Refining a Copilot Plan-mode plan
 
@@ -32,13 +39,13 @@ Plan mode drafts quickly but does not know this platform. Keep its useful resear
 
 | Kind of change     | Order                                                                                                                                                                              |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Direction changes  | `ai-platform-discovery-docs` design and decision first, then build                                                                                                                 |
+| Direction changes  | `ai-platform-discovery-docs` design and decision written first, then build; it ships in the end-of-run docs PR                                                                     |
 | Portal feature     | `ai-platform-backend-api` (route, service, tests) then `ai-platform-frontend` (`api-client.js`, views) then journey tests                                                          |
 | Persisted field    | Readers tolerate absence, plus a backfill entry when anything queries it; a rename is expand, backfill, then contract in a later change (backend `schema-changes.instructions.md`) |
 | Infrastructure     | `ai-platform-infra` (modules, schemas, catalogue) then release then `ai-platform-environments` parameters then pins and applies                                                    |
 | Reusable workflows | `ai-platform-workflows` release, then callers; a breaking change is a new major                                                                                                    |
 | Catalogue          | Infra release, then the backend's `CATALOGUE_REF`                                                                                                                                  |
-| Built-state record | After merge or release: discovery-docs `build-stories.md#status`, separate pull request                                                                                            |
+| Built-state record | After merge or release: discovery-docs `build-stories.md#status`, in the one end-of-run docs PR                                                                                    |
 
 Never plan hand edits to `ai-platform-tenants` or `ai-platform-deployments` environment files: they are written by `submit.yml`.
 
@@ -64,5 +71,5 @@ Coverage: at least 90 percent overall and never lower than the base; 100 percent
 - Each PR has one purpose a reviewer can state in a sentence; unrelated features are in separate PRs.
 - Security, accessibility and personal-data impact stated, or "none" with a reason.
 - Decisions cite evidence; nothing rests on "best practice" alone.
-- Docs and discovery record tasks listed.
+- The plan record names the committed plan file each PR updates, and the end-of-run docs PR is listed.
 - Risks have an owner or a question for the user.

@@ -24,7 +24,7 @@ Every `done` claim carries evidence: a command and its result line, `path:line`,
 
 ## Run folder
 
-`ai-platform-agents/.copilot-tracking/runs/{yyyy-mm-dd}-{slug}/` is working state, git-ignored. The durable record is the plans, pull requests and the discovery site.
+`ai-platform-agents/.copilot-tracking/runs/{yyyy-mm-dd}-{slug}/` is working state, git-ignored. The durable record is the plan record committed in each work PR and the one end-of-run docs PR (aip-plan).
 
 | File         | Written by                                | Holds                                                  |
 | ------------ | ----------------------------------------- | ------------------------------------------------------ |
@@ -81,5 +81,15 @@ NEXT: {recommended next stage, or the main risk}
 - `MODE: delegated` means you cannot talk to the user. When an answer would change scope, design, security or tests, return `needs-input`; never guess.
 - User-invoked (no `MODE` line): ask with the ask-questions tool, at most five questions, each with options and a recommendation.
 - Task status in `plan.md`: `todo`, `doing`, `done` (builder, with evidence), `verified` (Reviewer only), `blocked`.
+
+## Tools every agent should use
+
+- **Todo list** for any work of three or more steps: one item per task or finding id from `plan.md`, one `in-progress` at a time, ticked as each finishes. It is the live view; `plan.md` stays the record.
+- **Ask** (user-invoked only) with the ask-questions tool rather than prose questions; delegated agents return `needs-input`.
+- **Explore subagent** for wide read-only searches across repos, so your own context stays small.
+- **Diagnostics** before claiming done: `read/problems` after edits, `execute/testFailure` for a failing test, `search/usages` and `search/changes` before a rename or a review.
+- **GitHub search** (`githubRepo`, `githubTextSearch`, `github/*`) for proven patterns in DEFRA repositories before inventing one; cite what you used.
+- **Memory** (local to this machine, never shared or reviewed): read it at the start for gotchas and preferences, but treat every entry as a hint to verify, never as evidence. Write only verified, reusable facts with their source: `/memories/repo/` for repo commands and gotchas, `/memories/` for the user's preferences, `/memories/session/` for working notes. The run folder stays the record. Never store secrets, personal data or tenant identifiers. A fact the team needs goes into the repo's instructions by PR, then out of memory.
+- **Browser** to prove behaviour in a real run (pages, PR and CI pages); **web** for dated external sources.
 - Resume: read `brief.md`, `plan.md` and the last three `log.md` entries only.
 - No secrets, tokens, personal data or full resource IDs in any run file.

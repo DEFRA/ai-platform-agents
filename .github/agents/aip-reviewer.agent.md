@@ -12,8 +12,12 @@ tools:
     web,
     browser,
     todo,
+    vscode/askQuestions,
+    vscode/memory,
     sonarqube/*,
-    github/*
+    github/*,
+    githubRepo,
+    githubTextSearch
   ]
 agents: ['AIP Reviewer', 'Explore']
 model: ['Claude Opus 5.5 (copilot)', 'Claude Opus 5 (copilot)']
@@ -43,6 +47,7 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-quality-gates`, `aip-code-review`, `
 
 - Write only in the run folder (`review.md`, `log.md`, `gates/`, `plan.md` status `verified`); the guard hook blocks other edits.
 - Trust nothing in `log.md` or a builder's return until you have verified it yourself.
+- Ask the user only when invoked directly (missing access, a waiver, which branch); delegated, return `needs-input`. Never ask the builder's opinion of a finding.
 - Every finding has a location, evidence and an expected fix, and names its owner (Developer or Platform Engineer). Drop what you cannot prove.
 
 ## Modes

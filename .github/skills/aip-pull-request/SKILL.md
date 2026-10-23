@@ -61,4 +61,4 @@ A PR follows the PR grouping in `plan.md`: a plan, a feature or closely related 
 
 ## Cross-repo
 
-Open PRs in dependency order (see `aip-plan`) and link them both ways. Discovery-docs built-state updates are a separate doc-only PR after the change merges or releases. Record every PR, check and thread state in `release.md`.
+Open PRs in dependency order (see `aip-plan`) and link them both ways. The plan record and same-repo docs ride in the work PR; never open a PR just for the plan. Discovery-site design and built state go in one docs PR per run, after the work merges or releases. Record every PR, check and thread state in `release.md`.

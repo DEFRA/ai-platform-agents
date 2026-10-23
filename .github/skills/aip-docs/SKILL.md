@@ -12,16 +12,17 @@ Docs are short, accurate and consolidated: link to the authority, update the exi
 
 | Change                                   | Update                                                                                                                                                                                                                                  | When                                        |
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Plan record (every work PR)              | The entry named in `plan.md` "Docs and record"; infra or workflow work with no frontend PR uses the owning repo's plan file                                                                                                             | Same PR as the code                         |
 | Plan item built                          | Move it from `ai-platform-frontend/docs/plans/remaining.md` to the matching `docs/plans/implemented/NN-*.md` with a dated line; update `docs/plans/README.md` tables and `implemented/implemented-features.md` (row and "Last updated") | Same PR as the code                         |
 | Item deferred                            | Keep in `remaining.md`, marked "deferred, not removed"                                                                                                                                                                                  | Same PR                                     |
 | UI flow changed (route added or renamed) | `ai-platform-frontend/docs/flat-design-updates/v3/build-plan.md`                                                                                                                                                                        | Same PR                                     |
 | New env var, script or setup step        | That repo's `README.md`                                                                                                                                                                                                                 | Same PR                                     |
 | New convention or rule                   | That repo's `.github/copilot-instructions.md` or the matching instruction file                                                                                                                                                          | Same PR                                     |
-| Built state changed                      | `ai-platform-discovery-docs/src/content/build-stories.md#status` and any dated "Built by" or "State on" note on a design page                                                                                                           | Separate doc-only PR after merge or release |
+| Built state changed                      | `ai-platform-discovery-docs/src/content/build-stories.md#status` and any dated "Built by" or "State on" note on a design page                                                                                                           | One docs PR per run, after merge or release |
 
-The rules behind this table: `ai-platform-frontend/.github/instructions/route-plans.instructions.md` and `implemented-features.instructions.md`. Repoint every inbound link when moving a section.
+The end-of-run docs PR also carries any design change written at planning and, when no work PR touched the frontend, the `docs/plans/` update. The rules behind this table: `ai-platform-frontend/.github/instructions/route-plans.instructions.md` and `implemented-features.instructions.md`. Repoint every inbound link when moving a section.
 
-## Discovery-docs built-state PR
+## End-of-run docs PR (discovery site)
 
 Follow that repo's "Every change: propagate, date and record" steps:
 

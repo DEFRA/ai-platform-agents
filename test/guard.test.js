@@ -160,8 +160,9 @@ test('restricts edits by role', () => {
   assert.equal(decide(edit(code), 'orchestrator').decision, 'deny')
   assert.equal(decide(edit(code), 'developer').decision, null)
   assert.equal(
-    decide(edit('docs/plans/remaining.md'), 'planner').decision,
-    null
+    decide(edit('/r/ai-platform-frontend/docs/plans/remaining.md'), 'planner')
+      .decision,
+    'deny'
   )
   assert.equal(
     decide(
@@ -188,6 +189,20 @@ test('restricts edits by role', () => {
     ).decision,
     null
   )
+})
+
+test('lets every role use the memory tool', () => {
+  const memory = {
+    tool_name: 'memory',
+    tool_input: {
+      command: 'create',
+      path: '/memories/repo/aip.md',
+      file_text: '- note'
+    }
+  }
+  for (const role of ['orchestrator', 'reviewer', 'releaser', 'docs']) {
+    assert.equal(decide(memory, role).decision, null)
+  }
 })
 
 test('asks before agent, hook or workspace settings are edited', () => {
