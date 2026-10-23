@@ -64,6 +64,8 @@ List the positive, negative and edge cases per AC (`aip-test-design`), then the 
 
 Coverage: at least 90 percent overall and never lower than the base; 100 percent on error and security paths.
 
+State the test scope per PR group (affected tests, `--quick` or `--full`, per aip-quality-gates "Test scope"); shared code or a rewrite means the full suite before the PR.
+
 ## Plan quality check (before G1)
 
 - Every AC maps to at least one task and one test; every task maps to an AC.

@@ -1,6 +1,6 @@
 ---
 name: aip-quality-gates
-description: "Run an AI Platform repo's local quality gates with one command and a compact result: exact dependency pins, format, lint, tests, coverage (lines and functions 90, branches 85, changed files too), GitHub Advanced Security alerts, npm audit, Snyk, gitleaks secrets, Actions SHA pins, Terraform fmt, validate and test, tflint, Checkov, actionlint and shellcheck. Use before review, before a PR, after fixes, or to check coverage or security."
+description: "Run an AI Platform repo's local quality gates with one command and a compact result: exact dependency pins, format, lint, tests, coverage (lines and functions 90, branches 85, changed files too), GitHub Advanced Security alerts, npm audit, Snyk, gitleaks secrets, Actions SHA pins, Terraform fmt, validate and test, tflint, Checkov, actionlint and shellcheck. Use before review, before a PR, after fixes, to check coverage or security, or to decide which tests to run for a change (affected tests or full suite)."
 license: OGL-UK-3.0
 ---
 
@@ -15,10 +15,10 @@ node <this skill>/scripts/run-gates.mjs --repo <repo path> --full --out <run fol
 
 `<this skill>` is `ai-platform-agents/.github/skills/aip-quality-gates`. Add `--base <ref>` when the base is not `origin/main` (the script diffs from the merge base), or `--dry-run` to list the planned commands without running them.
 
-| Mode    | Runs                                                                                                                                                                                                                                                                                          | Who                                             |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `quick` | exact dependency pins, `format:check`, `lint`, tests (Unix env prefixes handled on Windows), `checks/` in infra, Terraform fmt, validate and tests                                                                                                                                            | Developer and Platform Engineer after each task |
-| `full`  | quick, then open GHAS alerts (code, Dependabot, secret; warning), `security-audit` (and `checks/` audit in infra), `npm audit --audit-level=high` (warning), Snyk SCA and Code, gitleaks on the diff, Actions SHA pins (warning), tflint, Checkov (warning), Snyk IaC, actionlint, shellcheck | Reviewer; builders before handover              |
+| Mode    | Runs                                                                                                                                                                                                                                                                                          | Who                                                                             |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `quick` | exact dependency pins, `format:check`, `lint`, tests (Unix env prefixes handled on Windows), `checks/` in infra, Terraform fmt, validate and tests                                                                                                                                            | Developer and Platform Engineer before handover of medium work                  |
+| `full`  | quick, then open GHAS alerts (code, Dependabot, secret; warning), `security-audit` (and `checks/` audit in infra), `npm audit --audit-level=high` (warning), Snyk SCA and Code, gitleaks on the diff, Actions SHA pins (warning), tflint, Checkov (warning), Snyk IaC, actionlint, shellcheck | Reviewer for medium and large; builders before handover of large or shared work |
 
 Coverage comes from `coverage/lcov.info` (or a root `lcov.info`) written during the run. Targets: lines and functions 90 (Defra), branches 85 (as in `ai-platform-workflows`). Totals and every changed file below target count as a failure.
 
@@ -53,9 +53,35 @@ Defra standards prefer GitHub Advanced Security over Snyk: GHAS results come fir
 
 SonarCloud is not local: read the quality gate and issues through the `sonarqube` MCP server (read-only) or the Web API, see the `aip-code-review` skill.
 
+## Test scope: run what the change can break
+
+Test the area of change first and widen only as risk grows. A run proves something only if the code changed since the last green run; cite that run instead of repeating it.
+
+| Change                                                                                                                                        | While building                         | Before handover                                                              | Reviewer                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Docs only, or comments                                                                                                                        | Format (and the docs site's own tests) | Same                                                                         | Same; no code suites                                                                  |
+| Small and isolated: one module, no contract, schema, config or shared helper                                                                  | Affected tests only                    | Affected tests, format and lint on the repo                                  | Affected tests, gitleaks on the diff; CI's full run on the PR is the suite evidence   |
+| Medium: several modules in a repo, a new route or page                                                                                        | Affected tests per task                | `--quick` once per touched repo                                              | `--full` once per touched repo                                                        |
+| Large, a rewrite, or anything shared (auth, session, `api-client.js`, config, guard, schemas, modules many roots use, reusable workflows, CI) | Affected tests and their dependants    | `--full` per touched repo, plus dependants in other repos (contract callers) | `--full` per touched and dependent repo, journey tests for affected journeys, then CI |
+
+Affected tests:
+
+| Stack                                 | Command                                                                                                          |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Vitest (frontend, backend, workflows) | `npx vitest related --run <changed files>` or `npx vitest run <test paths>` (Windows: set `$env:TZ='UTC'` first) |
+| `node --test` (agents)                | `node --test <test files>`                                                                                       |
+| Terraform                             | `terraform -chdir=<changed module or root> test` (`-filter=tests/<file>.tftest.hcl` for one file)                |
+| Journey tests                         | the affected spec only (`aip-test-journey`)                                                                      |
+
+- After a fix, re-run the failing test, then the scope above once; never loop the whole suite.
+- Small changes still meet changed-file coverage: add `--coverage` to the affected run and read the changed files' lines.
+- Do not run untouched repos, or suites for code the change cannot reach.
+- When unsure whether something is shared, search for its usages; if callers are outside the module, treat it as shared.
+- Report the scope you ran and why in the evidence line ("affected tests: 2 files, 14 passed; isolated change").
+
 ## Rules
 
 - Never weaken a gate to pass: no disabled rules, skipped tests, lowered thresholds or `--no-verify`.
-- Fix the cause, re-run quick for the repo, then full before handover.
+- Fix the cause, re-run the failing test, then the scope for the change size (above).
 - Discovery docs: the script runs `lint` and `test`; run `npm run check` yourself when sections, anchors, diagrams or links change (over 10 minutes; send output to a file).
 - Journey tests need a running frontend, so the script reports them as skipped; see `aip-test-journey`. Accessibility scans: `aip-accessibility`.

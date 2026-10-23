@@ -475,10 +475,12 @@ function secretsScan(root, base) {
         maxBuffer: 64 * 1024 * 1024
       }).stdout ?? ''
   )
+  // Windows needs a shell to resolve .cmd shims; the arguments are constants.
   const scan = spawnSync('gitleaks', ['stdin', '--no-banner', '--redact'], {
     cwd: root,
     input: [diff.stdout, ...added].join('\n'),
     encoding: 'utf8',
+    shell: process.platform === 'win32',
     timeout: STEP_TIMEOUT_MS,
     maxBuffer: 64 * 1024 * 1024
   })

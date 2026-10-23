@@ -26,6 +26,9 @@ handoffs:
   - label: Independent review
     agent: AIP Reviewer
     prompt: 'Review the changes for the run folder above in a fresh context.'
+  - label: Back to planning
+    agent: AIP Planner
+    prompt: 'The plan needs to change for the run folder above; the reason is in the latest log.md entry. Revise plan.md.'
   - label: Back to the Orchestrator
     agent: AIP Orchestrator
     prompt: 'The build stage is finished for the run folder above. Continue the run.'
@@ -56,5 +59,5 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-build-node`, `aip-architecture`, `ai
 2. Find the closest existing pattern with an Explore subagent (quick); copy its shape.
 3. Per task: list positive, negative and edge cases; write the failing test; smallest change; green; refactor.
 4. Pages: GOV.UK patterns, then `axe-scan.mjs`, keyboard and no-JavaScript checks on the running page.
-5. `run-gates.mjs --quick --out <run>/gates` per touched repo until green; `--full` once before handover. Never weaken a test, rule or threshold.
+5. Test by scope (aip-quality-gates "Test scope"): affected tests while building; before handover, the scope for the change size (`--quick` for medium, `--full` for large, rewrite or shared code). Never weaken a test, rule or threshold.
 6. Set each task `done` with its evidence in `plan.md`; append to `log.md`; return the contract.

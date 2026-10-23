@@ -22,6 +22,9 @@ agents: ['Explore']
 model: ['Claude Opus 5.5 (copilot)', 'Claude Opus 5 (copilot)']
 reasoning-effort: high
 handoffs:
+  - label: Review the plan
+    agent: AIP Reviewer
+    prompt: 'MODE: plan. Review brief.md and plan.md for the run folder above.'
   - label: Build the approved plan
     agent: AIP Developer
     prompt: 'Build the approved application tasks in the run folder above, in plan.md order.'
@@ -59,3 +62,5 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-intake`, `aip-plan`, `aip-architectu
 7. **Design** (only when needed, via aip-design): write it on a `docs/{topic}` branch in discovery-docs before build; it ships in the run's one docs PR at the end.
 8. **Plan record.** Fill the `Docs and record` section of `plan.md`: the plan file and entry each PR updates and the discovery changes. Do not edit plan files on whatever branch a checkout is on; Docs writes them on the work branch.
 9. Append to `log.md`; return the contract with the brief and plan paths and the decisions the user must approve at G1.
+
+**Revising** an existing plan (back to planning, or plan findings): change only what the reason touches, mark replaced tasks `superseded`, keep done work, add a dated revision line under `Gates:`, and say whether G1 is needed again (ACs, scope, contract or Impact changed).

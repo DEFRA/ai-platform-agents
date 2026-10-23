@@ -80,7 +80,7 @@ NEXT: {recommended next stage, or the main risk}
 
 - `MODE: delegated` means you cannot talk to the user. When an answer would change scope, design, security or tests, return `needs-input`; never guess.
 - User-invoked (no `MODE` line): ask with the ask-questions tool, at most five questions, each with options and a recommendation.
-- Task status in `plan.md`: `todo`, `doing`, `done` (builder, with evidence), `verified` (Reviewer only), `blocked`.
+- Task status in `plan.md`: `todo`, `doing`, `done` (builder, with evidence), `verified` (Reviewer only), `blocked`, `superseded` (replaced by a plan revision).
 
 ## Tools every agent should use
 

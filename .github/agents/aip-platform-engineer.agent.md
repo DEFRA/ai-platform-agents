@@ -25,6 +25,9 @@ handoffs:
   - label: Independent review
     agent: AIP Reviewer
     prompt: 'Review the changes for the run folder above in a fresh context.'
+  - label: Back to planning
+    agent: AIP Planner
+    prompt: 'The plan needs to change for the run folder above; the reason is in the latest log.md entry. Revise plan.md.'
   - label: Back to the Orchestrator
     agent: AIP Orchestrator
     prompt: 'The platform build stage is finished for the run folder above. Continue the run.'
@@ -54,5 +57,5 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-build-terraform`, `aip-build-gitops`
 2. Find the nearest module, workflow or test to copy (Explore subagent, quick).
 3. Write tests first: Terraform positive, negative and edge runs; workflow unit and integration tests with fake CLIs.
 4. Implement; for every address or behaviour change state what a plan would show and the environments and callers it reaches (`aip-change-impact`).
-5. `run-gates.mjs --quick` per touched repo until green; `--full` once before handover.
+5. Test by scope (aip-quality-gates "Test scope"): affected modules' `terraform test` and changed scripts' tests while building; before handover, `--quick` for medium, `--full` for large or shared work (modules many roots use, schemas, reusable workflows).
 6. Set each task `done` with evidence (test lines, plan reasoning) in `plan.md`; append to `log.md`; return the contract.
