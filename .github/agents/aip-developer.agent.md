@@ -21,7 +21,7 @@ tools:
   ]
 agents: ['Explore']
 model: ['Claude Sonnet 5.5 (copilot)', 'Claude Sonnet 5 (copilot)']
-reasoning-effort: medium
+reasoning-effort: high
 handoffs:
   - label: Independent review
     agent: AIP Reviewer

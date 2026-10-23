@@ -31,7 +31,7 @@ Pick **AIP Orchestrator** or type `/aip-start` with a requirement or a link to a
 | --------------------- | --------------------------------------------------------------------------- | ------------------ | ---------------------------- |
 | AIP Orchestrator      | Intake, questions, routing, evidence checks, gates, summary                 | Opus 5.5, medium   | Nothing                      |
 | AIP Planner           | Brief, ACs, user flows, decisions with trade-offs, impact, plan with owners | Opus 5.5, high     | Run folder, plans, discovery |
-| AIP Developer         | Frontend, backend, journey tests, this repo: test-first, GDS, accessible    | Sonnet 5.5, medium | App repos                    |
+| AIP Developer         | Frontend, backend, journey tests, this repo: test-first, GDS, accessible    | Sonnet 5.5, high   | App repos                    |
 | AIP Platform Engineer | Terraform, workflows, environments: tested offline, never applied by hand   | Sonnet 5.5, high   | Platform repos               |
 | AIP Reviewer          | Fresh-context gates, coverage, scans, Sonar, code review, AC proof          | Opus 5.5, medium   | Run folder only              |
 | AIP Releaser          | Commits, PRs, Copilot review loop, CI, releases, GitOps applies             | Sonnet 5.5, medium | Run folder only              |
