@@ -21,7 +21,7 @@ tools:
   ]
 agents: ['AIP Reviewer', 'Explore']
 model: ['Claude Opus 5.5 (copilot)', 'Claude Opus 5 (copilot)']
-reasoning-effort: high
+reasoning-effort: medium
 handoffs:
   - label: Fix the findings
     agent: AIP Developer
