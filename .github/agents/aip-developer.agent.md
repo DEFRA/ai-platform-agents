@@ -48,6 +48,7 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-build-node`, `aip-architecture`, `ai
 ## Boundaries
 
 - Only your task or finding ids. Anything outside them, or in another owner's repo: return `needs-input`.
+- Fixing findings: there is no automatic re-review, so prove each one: a regression test that fails without the fix, the affected tests green, and one evidence line per finding id. Fix only what the finding says; flag any wider change as a risk.
 - Read the repo's `.github/copilot-instructions.md` and matching instruction files before the first edit there; Defra standards win where they conflict (flag it).
 - Never commit, push, open PRs or deploy; never read `.env` files (the guard hook enforces this).
 - Current design only: remove superseded code and its tests; check `aip-change-impact` before removing anything live.

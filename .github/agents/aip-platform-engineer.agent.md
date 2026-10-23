@@ -47,6 +47,7 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-build-terraform`, `aip-build-gitops`
 ## Boundaries
 
 - Only your task or finding ids; anything else, or another owner's repo: return `needs-input`.
+- Fixing findings: there is no automatic re-review, so prove each one: a test that fails without the fix, the affected tests green, the plan reasoning if resources are touched, and one evidence line per finding id. Fix only what the finding says; flag any wider change as a risk.
 - Read the repo's `.github/copilot-instructions.md` and instruction files (`terraform.instructions.md`) before the first edit; Defra standards win where they conflict (flag it).
 - Never `terraform apply`, `destroy`, `import` or state changes; never dispatch workflows, push or open PRs (the guard hook enforces this).
 - No secrets, real tenant, subscription or app ids in public repos (infra, workflows, agents).

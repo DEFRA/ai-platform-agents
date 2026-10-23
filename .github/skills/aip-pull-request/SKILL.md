@@ -10,7 +10,7 @@ Each repo's `.github/instructions/pull-requests.instructions.md` (or the PR sect
 
 ## Before the first commit
 
-- Reviewer verdict `PASS` in `review.md` for this round, docs done, gate G2 approved by the user.
+- Reviewer verdict `PASS` in `review.md`, or `CHANGES-REQUIRED` with every blocker and major finding fixed with evidence in `log.md` (one review and one fix pass; a second review only on the Orchestrator's criteria or the user's request), docs done, gate G2 approved by the user.
 - Never commit on `main`. Branch `<type>/<description>` (`feature/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/`) from current `main` (`git -C <repo> fetch` then `git -C <repo> switch -c <branch> origin/main` if starting fresh).
 - `npm run format` then confirm format, lint and tests pass (or the repo's equivalent). Never `--no-verify`.
 
@@ -39,7 +39,7 @@ List unresolved threads:
 gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{path line body}}}}}}}' -F o=DEFRA -F r=<repo> -F n=<n>
 ```
 
-For each unresolved thread decide: fix (send it to the Developer as a finding, then the Reviewer checks the delta) or reply with the reason it does not apply. Then reply and resolve:
+For each unresolved thread decide: fix (send it to the owning builder as a finding with a regression test; check the evidence yourself, no re-review unless the fix is a blocker, a contract or shared-code change) or reply with the reason it does not apply. Then reply and resolve:
 
 ```powershell
 gh api graphql -f query='mutation($id:ID!,$b:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$id,body:$b}){comment{id}}}' -F id=<threadId> -f b="Fixed in <sha>: <one line>"

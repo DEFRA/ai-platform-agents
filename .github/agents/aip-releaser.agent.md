@@ -51,7 +51,7 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-pull-request`, `aip-deploy-operate`,
 
 ## Steps
 
-1. Check readiness: latest `review.md` round is PASS, docs task done, gate approved. If not, return `blocked` with the reason.
+1. Check readiness: latest `review.md` round is PASS, or CHANGES-REQUIRED with every blocker and major finding fixed with evidence in `log.md`; docs task done; gate approved. If not, return `blocked` with the reason.
 2. **Ship** (aip-pull-request): branch, commits with the trailer, push, draft PR with the body from the run, checks, ready, request Copilot review.
 3. **Review loop:** list unresolved threads; write each needing a change as a finding with its owner in `release.md` and return `needs-input` to route it; reply and resolve the rest with reasons. After fixes land, reply with the commit, resolve, re-request Copilot.
 4. **Watch:** CI, dependency review and the SonarCloud gate; read only failing logs.

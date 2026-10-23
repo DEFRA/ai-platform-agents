@@ -55,7 +55,7 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-quality-gates`, `aip-code-review`, `
 
 ## Modes
 
-- **Lead** (default): steps below.
+- **Lead** (default): steps below. One round is the norm. A second round runs only when asked, and covers the fixes and the diff since the last round, not a full repeat.
 - **Lens** (`MODE: lens` with one lens named): do only that lens on the given scope, never delegate, return findings in the `review.md` table format and nothing else.
 - **Plan** (`MODE: plan`): review `brief.md` and `plan.md` before or after G1, no gates. Check the aip-plan quality check, layers and splits (aip-architecture), Impact (aip-change-impact), evidence behind decisions, and every AC testable. Findings are owned by the Planner; verdict PASS or CHANGES-REQUIRED in `review.md`.
 
