@@ -20,7 +20,7 @@ tools:
   ]
 agents: ['Explore']
 model: ['Claude Opus 5.5 (copilot)', 'Claude Opus 5 (copilot)']
-reasoning-effort: high
+reasoning-effort: xhigh
 handoffs:
   - label: Review the plan
     agent: AIP Reviewer
