@@ -246,6 +246,32 @@ test('scopes the Developer to app repos and the Platform Engineer to platform re
   )
 })
 
+test('lets the Developer edit the gitops worker and the Platform Engineer edit tenants and deployments callers', () => {
+  const worker = '/r/ai-platform-gitops-worker/src/reconcile.js'
+  const tenantsCaller = '/r/ai-platform-tenants/.github/workflows/apply.yml'
+  const deploymentsCaller =
+    'C:\\repos\\ai-platform-deployments\\.github\\workflows\\apply.yml'
+  assert.equal(decide(edit(worker), 'developer').decision, null)
+  assert.equal(decide(edit(worker), 'platform').decision, 'deny')
+  assert.equal(decide(edit(tenantsCaller), 'platform').decision, null)
+  assert.equal(decide(edit(deploymentsCaller), 'platform').decision, null)
+  assert.equal(decide(edit(tenantsCaller), 'developer').decision, 'deny')
+  assert.equal(decide(edit(deploymentsCaller), 'developer').decision, 'deny')
+  for (const role of ['orchestrator', 'reviewer', 'releaser', 'docs']) {
+    assert.equal(decide(edit(worker), role).decision, 'deny')
+    assert.equal(decide(edit(tenantsCaller), role).decision, 'deny')
+  }
+})
+
+test('keeps machine-written state denied for the Platform Engineer in tenants and deployments', () => {
+  for (const state of [
+    '/r/ai-platform-tenants/environments/infradev/cool-team.json',
+    '/r/ai-platform-deployments/environments/infradev/platform.json'
+  ]) {
+    assert.equal(decide(edit(state), 'platform').decision, 'deny')
+  }
+})
+
 test('denies MCP pull request merges and asks before MCP repository writes', () => {
   assert.equal(
     decide({

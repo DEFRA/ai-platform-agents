@@ -106,11 +106,17 @@ const ROLE_EDIT = {
   planner: { allow: [RUN, /\/ai-platform-discovery-docs\//] },
   docs: { allow: [RUN, /\.md$/, /\/docs\//, /\/ai-platform-discovery-docs\//] },
   developer: {
-    allow: [RUN, /\/ai-platform-(frontend|backend-api|journey-tests|agents)\//],
+    allow: [
+      RUN,
+      /\/ai-platform-(frontend|backend-api|journey-tests|agents|gitops-worker)\//
+    ],
     anyOtherPath: true
   },
   platform: {
-    allow: [RUN, /\/ai-platform-(infra|workflows|environments)\//],
+    allow: [
+      RUN,
+      /\/ai-platform-(infra|workflows|environments|tenants|deployments)\//
+    ],
     anyOtherPath: true
   }
 }

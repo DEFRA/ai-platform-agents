@@ -39,12 +39,12 @@ Templates: [run-files.md](./references/run-files.md).
 
 ## Who builds what
 
-| Repo                                                                | Agent                                            |
-| ------------------------------------------------------------------- | ------------------------------------------------ |
-| `ai-platform-frontend`, `-backend-api`, `-journey-tests`, `-agents` | AIP Developer                                    |
-| `ai-platform-infra`, `-workflows`, `-environments`                  | AIP Platform Engineer                            |
-| `ai-platform-tenants`, `-deployments`                               | Nobody by hand; AIP Releaser dispatches after G3 |
-| `ai-platform-discovery-docs`                                        | AIP Planner (design), AIP Docs (built state)     |
+| Repo                                                                                  | Agent                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ai-platform-frontend`, `-backend-api`, `-journey-tests`, `-agents`, `-gitops-worker` | AIP Developer                                                                                                                                                                           |
+| `ai-platform-infra`, `-workflows`, `-environments`                                    | AIP Platform Engineer                                                                                                                                                                   |
+| `ai-platform-tenants`, `-deployments`                                                 | AIP Platform Engineer for caller workflows, CODEOWNERS and README only; `environments/` state is never edited by hand (the guard denies it) and the AIP Releaser dispatches it after G3 |
+| `ai-platform-discovery-docs`                                                          | AIP Planner (design), AIP Docs (built state)                                                                                                                                            |
 
 A task that crosses the line goes back as `needs-input`; the Orchestrator routes it.
 
