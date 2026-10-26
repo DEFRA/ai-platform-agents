@@ -10,14 +10,14 @@ The rules are each repo's `.github/copilot-instructions.md` ("Review first" and 
 
 ## Repos
 
-| Repo                       | Who writes                                       | What an agent may do                                                             |
-| -------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------- |
-| `ai-platform-workflows`    | Engineers by PR; release-please                  | Workflows, actions, `src/` modules and `scripts/`, with tests                    |
-| `ai-platform-environments` | Engineers by reviewed PR                         | `registry.json`, `global.tfvars.json`, `environments/{env}/platform.tfvars.json` |
-| `ai-platform-tenants`      | `submit.yml` (Portal API); break-glass by people | Read only                                                                        |
-| `ai-platform-deployments`  | `submit.yml` and release; break-glass by people  | Read only                                                                        |
+| Repo                       | Who writes                                       | What an agent may do                                                              |
+| -------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `ai-platform-workflows`    | Engineers by PR; release-please                  | Workflows, actions, `src/` modules and `scripts/`, with tests                     |
+| `ai-platform-environments` | Engineers by reviewed PR                         | `registry.json`, `global.tfvars.json`, `environments/{env}/platform.tfvars.json`  |
+| `ai-platform-tenants`      | `submit.yml` (Portal API); break-glass by people | Caller workflows, `CODEOWNERS` and `README.md` only; `environments/` is read only |
+| `ai-platform-deployments`  | `submit.yml` and release; break-glass by people  | Caller workflows, `CODEOWNERS` and `README.md` only; `environments/` is read only |
 
-The guard hook denies edits under the tenants and deployments `environments/` folders. Break-glass is a human procedure.
+The guard hook denies edits under the tenants and deployments `environments/` folders, and any other file in those two repos outside the caller workflows, `CODEOWNERS` and `README.md`. Break-glass is a human procedure.
 
 ## Order
 

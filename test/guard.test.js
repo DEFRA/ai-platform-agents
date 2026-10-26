@@ -246,6 +246,92 @@ test('scopes the Developer to app repos and the Platform Engineer to platform re
   )
 })
 
+test('lets the Developer edit the gitops worker and the Platform Engineer edit tenants and deployments callers', () => {
+  const worker = '/r/ai-platform-gitops-worker/src/reconcile.js'
+  const tenantsCaller = '/r/ai-platform-tenants/.github/workflows/apply.yml'
+  const deploymentsCaller =
+    'C:\\repos\\ai-platform-deployments\\.github\\workflows\\apply.yml'
+  assert.equal(decide(edit(worker), 'developer').decision, null)
+  assert.equal(decide(edit(worker), 'platform').decision, 'deny')
+  assert.equal(decide(edit(tenantsCaller), 'platform').decision, null)
+  assert.equal(decide(edit(deploymentsCaller), 'platform').decision, null)
+  assert.equal(decide(edit(tenantsCaller), 'developer').decision, 'deny')
+  assert.equal(decide(edit(deploymentsCaller), 'developer').decision, 'deny')
+  for (const role of ['orchestrator', 'reviewer', 'releaser', 'docs']) {
+    assert.equal(decide(edit(worker), role).decision, 'deny')
+    assert.equal(decide(edit(tenantsCaller), role).decision, 'deny')
+  }
+})
+
+test('keeps machine-written state denied for the Platform Engineer in tenants and deployments', () => {
+  for (const state of [
+    '/r/ai-platform-tenants/environments/infradev/cool-team.json',
+    '/r/ai-platform-deployments/environments/infradev/platform.json'
+  ]) {
+    assert.equal(decide(edit(state), 'platform').decision, 'deny')
+  }
+})
+
+test('limits the Platform Engineer in tenants and deployments to caller workflows, CODEOWNERS and README', () => {
+  for (const repo of ['ai-platform-tenants', 'ai-platform-deployments']) {
+    for (const allowed of [
+      `/r/${repo}/.github/workflows/apply.yml`,
+      `/r/${repo}/.github/workflows/apply.yaml`,
+      `/r/${repo}/.github/CODEOWNERS`,
+      `/r/${repo}/CODEOWNERS`,
+      `/r/${repo}/README.md`
+    ]) {
+      assert.equal(decide(edit(allowed), 'platform').decision, null, allowed)
+    }
+    for (const refused of [
+      `/r/${repo}/package.json`,
+      `/r/${repo}/src/apply.js`,
+      `/r/${repo}/docs/notes.md`,
+      `/r/${repo}/.github/workflows/scripts/run.sh`,
+      `/r/${repo}/.github/workflows/../../src/apply.js`,
+      `/r/${repo}/.github/dependabot.yml`
+    ]) {
+      assert.equal(decide(edit(refused), 'platform').decision, 'deny', refused)
+    }
+  }
+})
+
+test('denies writes to the tenants and deployments state directory itself, for every role', () => {
+  for (const role of [undefined, 'developer', 'platform']) {
+    for (const command of [
+      'rm -rf /r/ai-platform-tenants/environments',
+      'Remove-Item -Recurse C:\\r\\ai-platform-deployments\\environments',
+      'rm -rf "/r/ai-platform-deployments/environments"'
+    ]) {
+      assert.equal(decide(terminal(command), role).decision, 'deny', command)
+    }
+    assert.equal(
+      decide(edit('/r/ai-platform-tenants/environments'), role).decision,
+      'deny'
+    )
+  }
+  assert.equal(
+    decide(edit('/r/ai-platform-tenants/environments-notes.md')).decision,
+    null
+  )
+})
+
+test('denies moving relative tenant and deployment state sources', () => {
+  for (const repo of ['ai-platform-tenants', 'ai-platform-deployments']) {
+    for (const command of [
+      'mv environments/infradev/state.json README.md',
+      'Move-Item environments/infradev/state.json README.md'
+    ]) {
+      assert.equal(
+        decide({ ...terminal(command), cwd: `/r/${repo}` }, 'platform')
+          .decision,
+        'deny',
+        `${repo}: ${command}`
+      )
+    }
+  }
+})
+
 test('denies MCP pull request merges and asks before MCP repository writes', () => {
   assert.equal(
     decide({
