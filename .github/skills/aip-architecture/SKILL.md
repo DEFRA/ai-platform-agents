@@ -18,7 +18,7 @@ Authorities, linked not copied: each app repo's `.github/copilot-instructions.md
 | Backend `src/adapters/`               | One external system behind a port (`credential-vault.js`, catalogue source, issuer, tenant orchestrator), contract test shared with the mock | Business rules                                                                  |
 | `ai-platform-workflows`, `submit.yml` | Applying desired state: validate, plan, apply, report                                                                                        | Business decisions; logic inline in YAML                                        |
 | `ai-platform-infra`                   | Azure resources from team files and parameters                                                                                               | Secrets; APIM subscriptions (the backend owns them)                             |
-| `ai-platform-tenants`, `-deployments` | Desired state written by machines                                                                                                            | Hand edits                                                                      |
+| `ai-platform-tenants`, `-deployments` | Desired state written by machines                                                                                                            | Hand edits to `environments/`                                                   |
 
 A rule needed by two layers lives in the lower one and is exposed; the upper one consumes it.
 

@@ -87,7 +87,7 @@ const ASK_TOOLS = [
   ]
 ]
 
-const STATE_PATH = /ai-platform-(tenants|deployments)\/environments\//
+const STATE_PATH = /ai-platform-(tenants|deployments)\/environments(?![\w.-])/
 const STATE_WRITE =
   /(set-content|add-content|out-file|new-item|copy-item|move-item|remove-item|\bcp\b|\bmv\b|\brm\b|sed\s+-i|>)/i
 const GUARD_PATH =
@@ -98,6 +98,9 @@ const ENV_REASON = 'Do not read or write .env files; they may hold secrets.'
 
 const RUN = /\/\.copilot-tracking\//
 const ANY_REPO = /\/ai-platform-[a-z-]+\//
+// Tenants and deployments are machine-written; the Platform Engineer may edit only their caller workflows, CODEOWNERS and README.
+const CALLER_FILES =
+  /\/ai-platform-(tenants|deployments)\/(\.github\/workflows\/[^/]+\.ya?ml|(\.github\/)?codeowners|readme\.md)$/
 // A path naming no ai-platform repo (relative) is allowed for roles with `anyOtherPath`.
 const ROLE_EDIT = {
   orchestrator: { allow: [] },
@@ -115,7 +118,8 @@ const ROLE_EDIT = {
   platform: {
     allow: [
       RUN,
-      /\/ai-platform-(infra|workflows|environments|tenants|deployments)\//
+      /\/ai-platform-(infra|workflows|environments)\//,
+      CALLER_FILES
     ],
     anyOtherPath: true
   }
