@@ -316,6 +316,22 @@ test('denies writes to the tenants and deployments state directory itself, for e
   )
 })
 
+test('denies moving relative tenant and deployment state sources', () => {
+  for (const repo of ['ai-platform-tenants', 'ai-platform-deployments']) {
+    for (const command of [
+      'mv environments/infradev/state.json README.md',
+      'Move-Item environments/infradev/state.json README.md'
+    ]) {
+      assert.equal(
+        decide({ ...terminal(command), cwd: `/r/${repo}` }, 'platform')
+          .decision,
+        'deny',
+        `${repo}: ${command}`
+      )
+    }
+  }
+})
+
 test('denies MCP pull request merges and asks before MCP repository writes', () => {
   assert.equal(
     decide({

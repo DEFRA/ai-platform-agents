@@ -254,6 +254,7 @@ export function writeTargets(command) {
   )) {
     const args = m[1].match(new RegExp(token, 'g')) ?? []
     const operands = args.map(unquote).filter((a) => !a.startsWith('-'))
+    if (/^(mv|move-item)\b/i.test(m[0])) targets.push(...operands.slice(0, -1))
     const last = operands.at(-1)
     if (last) targets.push(last)
   }
