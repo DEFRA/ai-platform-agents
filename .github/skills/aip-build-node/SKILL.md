@@ -6,7 +6,15 @@ license: OGL-UK-3.0
 
 # Build: frontend and backend
 
-Each repo's `.github/copilot-instructions.md` and `.github/instructions/*.md` are the rules. Read them before the first edit in a repo. Use the AICE skills for JavaScript: `javascript-style-guide`, `javascript-testing-standards`, and `javascript-design-language` for any page. Scaffold new pages with the `new-route` skill. Design quality: `aip-clean-code`. Pages: `aip-gds-ui`, `aip-user-flows`, `aip-accessibility`. Tests: `aip-test-design`, `aip-test-node`. Runtime: `aip-cdp`.
+Each repo's `.github/copilot-instructions.md` and `.github/instructions/*.md` are the rules. Use the AICE skills for JavaScript: `javascript-style-guide`, `javascript-testing-standards`, and `javascript-design-language` for any page. Scaffold new pages with the `new-route` skill. Design quality: `aip-clean-code`. Pages: `aip-gds-ui`, `aip-user-flows`, `aip-accessibility`. Tests: `aip-test-design`, `aip-test-node`. Runtime: `aip-cdp`. Security (OWASP): `aip-security-review`.
+
+## Before the first edit
+
+- **Detect the repo** from its `package.json` and paths: frontend is Hapi + Nunjucks + GOV.UK Frontend with `src/client`; backend is a Hapi JSON API + MongoDB.
+- **Read that repo's rules:** `.github/copilot-instructions.md`, each `.github/instructions/*.instructions.md` whose `applyTo` matches the files you will touch, and each `.github/skills/*` whose description matches the task (for example `new-route` in the frontend; `javascript-style-guide`, `javascript-testing-standards` and `javascript-review-standards` when relevant).
+- **Repo rules win** over framework or skill defaults: tests stay colocated as `<name>.test.js` even where the AICE testing skill suggests a `tests/` folder. Flag the conflict.
+- **Cross-cutting work:** read both repos' instruction files, and keep `api-client.js`, route shapes and error `code` values in sync.
+- **Security:** apply [aip-security-review](../aip-security-review/SKILL.md) for OWASP; do not restate it here.
 
 ## Where things go
 
