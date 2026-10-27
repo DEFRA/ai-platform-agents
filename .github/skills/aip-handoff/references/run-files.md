@@ -105,6 +105,8 @@ PR groups: P1 = {one purpose, e.g. "credential expiry feature (backend)"}. Group
 ## release.md
 
 ```markdown
-| Repo | Branch | PR  | Checks | Sonar gate | Copilot threads | Human review | Merged | Deployed |
-| ---- | ------ | --- | ------ | ---------- | --------------- | ------------ | ------ | -------- |
+| Repo | Branch | PR  | Checks | Sonar gate | Copilot rounds (max 3) | Copilot threads | Human review | Merged | Deployed |
+| ---- | ------ | --- | ------ | ---------- | ---------------------- | --------------- | ------------ | ------ | -------- |
 ```
+
+Copilot rounds: the review count from the API and the cap in `aip-pull-request`. List any review 3 comments left for the human under the table.

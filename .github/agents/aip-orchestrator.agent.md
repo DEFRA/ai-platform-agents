@@ -60,7 +60,7 @@ The flow is the usual order, not a rail. The user may enter or switch at any sta
 - **Back to planning** (from the user, a builder's `needs-input` or review findings that show the plan is wrong): the Planner revises `plan.md`, marks replaced tasks `superseded` and keeps done work. G1 again only if ACs, scope, contract or Impact changed; otherwise carry on.
 - Builds started under the old plan stop at the next return; the review that follows covers only what the revision touched.
 
-Copilot PR comments go Releaser to the owning builder (fix plus regression test), then the Releaser checks the evidence, replies and resolves. No Reviewer round unless the second-review criteria above apply.
+Copilot PR comments go Releaser to the owning builder (fix plus regression test), then the Releaser checks the evidence, replies and resolves, within the three-review cap in `aip-pull-request` (the third review's comments are left for the human). No Reviewer round unless the second-review criteria above apply.
 
 ## 1. Intake
 
