@@ -22,4 +22,4 @@ The AI Platform delivery framework: Copilot agents, skills, prompts and guard ho
 
 - `npm run format`, then `npm run format:check`, `npm run validate` and `npm test` pass before every commit.
 - A change to a script ships with a test that fails without it.
-- Branch, PR, Copilot review, then a human reviewer; never `--no-verify`.
+- Branch, PR, Copilot review (capped at three reviews per PR, see `aip-pull-request`), then a human reviewer; never `--no-verify`.
