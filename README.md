@@ -26,6 +26,10 @@ Pick **AIP Orchestrator** or type `/aip-start` with a requirement or a link to a
 | `/aip-resume`      | Continue a run in a fresh chat from its run folder       |
 | `/aip-refine-plan` | Turn a Copilot Plan-mode plan into an AIP brief and plan |
 | `/aip-review`      | Independent review of current changes, outside a run     |
+| `/hve-create`      | Create an HVE board item from a design PR or an idea     |
+| `/hve-move`        | Move an HVE board item to another column                 |
+
+The two `/hve-` prompts run the [AI Platform HVE Board](https://github.com/orgs/DEFRA/projects/23) by the guide in `ai-platform-discovery-docs` `docs/hve-board.md`, for example `/hve-create https://github.com/DEFRA/ai-platform-discovery-docs/pull/64 ready` or `/hve-move #42 in progress`. They need `gh` signed in with the `project` scope (`gh auth refresh -s project`).
 
 | Agent                 | Does                                                                        | Model, effort      | Edits                        |
 | --------------------- | --------------------------------------------------------------------------- | ------------------ | ---------------------------- |
