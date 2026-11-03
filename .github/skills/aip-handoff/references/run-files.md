@@ -9,7 +9,7 @@ Rewritten, never appended; at most 30 lines. A fresh chat reads this first (`aip
 ```markdown
 # State: {yyyy-mm-dd}-{slug}
 
-Updated: {yyyy-mm-dd hh:mm} by {agent} | Autonomy: {guided | standard | full} | Stage: {plan | build | review | docs | release | deploy | record | closed}
+Updated: {yyyy-mm-dd hh:mm} by {agent} | Stage: {plan | build | review | docs | release | deploy | record | closed}
 
 ## Now
 

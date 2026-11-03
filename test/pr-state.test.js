@@ -246,6 +246,37 @@ test('settle waits while a review is pending, stops when it lands, and gives up 
   assert.equal(sleeps.length, 0)
 })
 
+test('in human-only mode open threads stay visible without hiding checks or a new head', () => {
+  const reviews = Array.from({ length: 4 }, (_, index) =>
+    review(COPILOT, HEAD, 50 - index)
+  )
+  const open = [thread('T1', false)]
+  const settledForHuman = assess(pr({ reviews, threads: open }), NOW)
+  assert.equal(settledForHuman.state, 'HUMAN-REVIEW')
+  assert.match(
+    format('DEFRA/x#1', settledForHuman),
+    /Do not route, reply or resolve/
+  )
+  assert.equal(
+    assess(pr({ reviews, threads: open, rollup: 'FAILURE' }), NOW).state,
+    'CHECKS-FAILING'
+  )
+  const newHead = [...reviews.slice(0, 3), review(COPILOT, OLD, 10)]
+  assert.equal(
+    assess(pr({ reviews: newHead, threads: open }), NOW).state,
+    'UNREVIEWED-HEAD'
+  )
+})
+
+test('a connection longer than one page is never reported as clear', () => {
+  const moreThreads = pr({ reviews: [review(COPILOT, HEAD, 5)] })
+  moreThreads.reviewThreads.pageInfo = { hasNextPage: true }
+  assert.equal(assess(moreThreads, NOW).state, 'INCOMPLETE')
+  const moreReviews = pr({ reviews: [review(COPILOT, HEAD, 5)] })
+  moreReviews.reviews.pageInfo = { hasPreviousPage: true }
+  assert.equal(assess(moreReviews, NOW).state, 'INCOMPLETE')
+})
+
 test('arguments are validated before anything reaches the shell or GitHub', () => {
   assert.deepEqual(
     parseArgs([

@@ -24,8 +24,8 @@ Coverage comes from `coverage/lcov.info` (or a root `lcov.info`) written during 
 
 Two switches cut repeat work, and both fail safe (a mismatch runs everything):
 
-- **Docs-only scope (automatic).** When every changed file is Markdown, under `docs/` or the licence, the script runs format, lint and the secrets scan only (plus the build-only `test` of a repo with no unit tests, such as discovery-docs) and prints `SCOPE docs-only`. `--scope full` forces everything.
-- **`--reuse <summary>`.** Every summary carries a `TREE` fingerprint of HEAD, tracked changes and untracked files. Pass the builder's `<run>/gates/<repo>-summary.txt`: if the tree is identical and that run passed, pins, format, lint and tests are not run again (their coverage lines are carried over) and only the scans and linters of `--full` run. It prints `REUSED ...` or `REUSE refused: <reason>`.
+- **Docs-only scope (automatic).** When every changed file is Markdown (outside `.github/`), under `docs/` or the licence, the script runs format, lint, the secrets scan and the repo's own `validate` script (links and references) only, plus the build-only `test` of a repo with no unit tests such as discovery-docs, and prints `SCOPE docs-only`. Agent, skill, prompt and workflow files under `.github/` are configuration, never docs-only. `--scope full` forces everything.
+- **`--reuse <summary>`.** Every summary carries a `TREE` fingerprint of HEAD, the comparison base, tracked changes and untracked files. Pass the builder's `<run>/gates/<repo>-summary.txt`: if tree and base are identical and that run passed, each quick gate with a `PASS` line there is not run again (shown as `reused`, coverage lines carried with `test`) and every other gate runs, including the scans and linters of `--full`. It prints `REUSED ...` or `REUSE refused: <reason>`.
 
 ## Reading the result
 

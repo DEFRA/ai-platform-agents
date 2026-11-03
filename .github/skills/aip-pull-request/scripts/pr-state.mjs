@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Reports where one pull request stands, from GitHub's own data, so no agent has to infer it from memory or timestamps.
 // Usage: node pr-state.mjs --repo DEFRA/<repo> --pr <number> [--wait <minutes>] [--json]
+// Exit 0: SETTLED, or HUMAN-REVIEW (cap reached, threads left for the human). 1: anything else. 2: could not read.
 import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -10,14 +11,15 @@ export const AUTO_REVIEW_LIMIT = 3
 // A Copilot review normally lands in 2 to 10 minutes; a request older than this has stalled.
 export const STALLED_AFTER_MINUTES = 30
 const POLL_SECONDS = 60
+const GH_TIMEOUT_MS = 60 * 1000
 const IN_FLIGHT = new Set(['REVIEW-PENDING', 'CHECKS-PENDING'])
 const FAILED = new Set(['FAILURE', 'TIMED_OUT', 'CANCELLED', 'ERROR'])
 
 const QUERY = `query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){
 state isDraft headRefOid
-reviews(first:100){nodes{author{login} submittedAt body commit{oid} comments{totalCount}}}
+reviews(last:100){pageInfo{hasPreviousPage} nodes{author{login} submittedAt body commit{oid} comments{totalCount}}}
 timelineItems(last:50,itemTypes:[REVIEW_REQUESTED_EVENT]){nodes{... on ReviewRequestedEvent{createdAt requestedReviewer{... on Bot{login} ... on User{login}}}}}
-reviewThreads(first:100){nodes{id isResolved isOutdated comments(first:1){nodes{path line body}}}}
+reviewThreads(first:100){pageInfo{hasNextPage} nodes{id isResolved isOutdated comments(first:1){nodes{path line body}}}}
 commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){nodes{__typename ... on CheckRun{name conclusion status} ... on StatusContext{context state}}}}}}}
 }}}`
 
@@ -66,17 +68,20 @@ function checkState(pr) {
   return { rollup: rollup?.state ?? 'NONE', failing }
 }
 
-function decide(pr, copilot, threads, checks) {
+function decide(pr, copilot, threads, checks, incomplete) {
   if (pr.state !== 'OPEN') return pr.state
+  if (incomplete) return 'INCOMPLETE'
   if (copilot.pendingMinutes !== null)
     return copilot.pendingMinutes > STALLED_AFTER_MINUTES
       ? 'REQUEST-STALLED'
       : 'REVIEW-PENDING'
-  if (threads.length) return 'THREADS-OPEN'
+  const forHuman = copilot.mode === 'human-only'
+  if (threads.length && !forHuman) return 'THREADS-OPEN'
   if (['FAILURE', 'ERROR'].includes(checks.rollup)) return 'CHECKS-FAILING'
   if (['PENDING', 'EXPECTED'].includes(checks.rollup)) return 'CHECKS-PENDING'
   if (copilot.count === 0) return 'NO-COPILOT-REVIEW'
-  return copilot.onHead ? 'SETTLED' : 'UNREVIEWED-HEAD'
+  if (!copilot.onHead) return 'UNREVIEWED-HEAD'
+  return threads.length ? 'HUMAN-REVIEW' : 'SETTLED'
 }
 
 /**
@@ -102,8 +107,13 @@ export function assess(pr, now = Date.now()) {
       }
     })
   const checks = checkState(pr)
+  // A connection longer than one page would hide older reviews or later threads: never call that clear.
+  const incomplete = Boolean(
+    pr.reviews.pageInfo?.hasPreviousPage ||
+    pr.reviewThreads.pageInfo?.hasNextPage
+  )
   return {
-    state: decide(pr, copilot, threads, checks),
+    state: decide(pr, copilot, threads, checks, incomplete),
     head: pr.headRefOid,
     draft: pr.isDraft,
     copilot,
@@ -125,7 +135,11 @@ const NEXT_STEP = {
   'UNREVIEWED-HEAD':
     'The newest Copilot review is of an older commit and none is pending: request one review.',
   MERGED: 'Merged.',
-  CLOSED: 'Closed.'
+  CLOSED: 'Closed.',
+  INCOMPLETE:
+    'More than 100 reviews or threads: this read is partial and cannot show the PR is clear. Read it in the GitHub UI.',
+  'HUMAN-REVIEW':
+    'Copilot cap reached: list the open threads for the human reviewer and leave them open. Do not route, reply or resolve.'
 }
 
 /**
@@ -179,10 +193,14 @@ export function readPullRequest(repo, number) {
     out = execFileSync('gh', args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: GH_TIMEOUT_MS,
       maxBuffer: 16 * 1024 * 1024
     })
   } catch (error) {
-    const reason = String(error.stderr || error.message).split('\n')[0]
+    const reason =
+      error.code === 'ETIMEDOUT'
+        ? `no answer within ${GH_TIMEOUT_MS / 1000} s`
+        : String(error.stderr || error.message).split('\n')[0]
     throw new Error(`gh could not read ${repo}#${number}: ${reason}`)
   }
   const pr = JSON.parse(out).data?.repository?.pullRequest
@@ -245,7 +263,9 @@ if (invoked === fileURLToPath(import.meta.url).toLowerCase()) {
       ? JSON.stringify(result, null, 2)
       : format(`${repo}#${pr}`, result)
     process.stdout.write(`${text}\n`)
-    process.exitCode = result.state === 'SETTLED' ? 0 : 1
+    process.exitCode = ['SETTLED', 'HUMAN-REVIEW'].includes(result.state)
+      ? 0
+      : 1
   } catch (error) {
     process.stderr.write(`${error.message}\n`)
     process.exitCode = 2

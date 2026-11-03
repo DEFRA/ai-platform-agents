@@ -5,13 +5,17 @@ import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   utimesSync,
   writeFileSync
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 
-import { runGates } from '../.github/skills/aip-quality-gates/scripts/run-gates.mjs'
+import {
+  runGates,
+  treeFingerprint
+} from '../.github/skills/aip-quality-gates/scripts/run-gates.mjs'
 
 const LCOV = [
   'SF:src/a.js',
@@ -341,15 +345,22 @@ test('a green run on the same code is reused, and refused once the code changes'
   assert.match(first.output, /^TREE \w{40}$/m)
 
   const reused = runGates([...options, '--quick', '--reuse', summaryPath])
-  assert.match(reused.output, /REUSED pins, format, lint, test .*same code/)
-  assert.doesNotMatch(reused.output, /PASS test/)
+  assert.match(
+    reused.output,
+    /REUSED pins, format, lint, test .*same code and base/
+  )
+  assert.match(reused.output, /^PASS test {2}reused$/m)
+  assert.doesNotMatch(reused.output, /^PASS test \d+s/m)
   assert.match(reused.output, /COVERAGE repo lines 100/)
   assert.equal(reused.exitCode, 0)
 
   writeFileSync(join(root, 'src', 'a.js'), 'export const a = 2\n')
   const refused = runGates([...options, '--quick', '--reuse', summaryPath])
-  assert.match(refused.output, /REUSE refused: the code changed since that run/)
-  assert.match(refused.output, /PASS test/)
+  assert.match(
+    refused.output,
+    /REUSE refused: the code or comparison base changed/
+  )
+  assert.match(refused.output, /^PASS test \d+s/m)
 
   const missing = runGates([
     ...options,
@@ -358,4 +369,85 @@ test('a green run on the same code is reused, and refused once the code changes'
     join(out, 'none.txt')
   ])
   assert.match(missing.output, /REUSE refused: no earlier summary found/)
+})
+
+test('reuse proves only the gates that passed: a docs-only summary does not stand in for the tests', () => {
+  const root = greenRepo()
+  writeFileSync(join(root, 'README.md'), '# Notes\n')
+  const out = join(root, 'gates-out')
+  const summaryPath = join(out, `${root.split(/[\\/]/).pop()}-summary.txt`)
+  const options = ['--repo', root, '--quick', '--base', 'HEAD', '--out', out]
+
+  runGates(options)
+  const full = runGates([...options, '--scope', 'full', '--reuse', summaryPath])
+  assert.match(full.output, /REUSED format, lint from/)
+  assert.match(full.output, /^PASS test \d+s/m)
+  assert.match(full.output, /^PASS pins /m)
+  assert.doesNotMatch(full.output, /COVERAGE skipped/)
+})
+
+test('reuse is refused when the comparison base differs, even for the same tree', () => {
+  const root = greenRepo()
+  mkdirSync(join(root, 'src'))
+  writeFileSync(join(root, 'src', 'a.js'), 'export const a = 1\n')
+  execSync(
+    'git add . && git -c user.name=t -c user.email=t@example.com commit -q -m two',
+    {
+      cwd: root,
+      stdio: 'ignore'
+    }
+  )
+  const out = join(root, 'gates-out')
+  const summaryPath = join(out, `${root.split(/[\\/]/).pop()}-summary.txt`)
+  const options = ['--repo', root, '--quick', '--out', out]
+
+  const first = execSync('git rev-parse HEAD~1', {
+    cwd: root,
+    encoding: 'utf8'
+  }).trim()
+  runGates([...options, '--base', 'HEAD'])
+  const other = runGates([...options, '--base', first, '--reuse', summaryPath])
+  assert.match(
+    other.output,
+    /REUSE refused: the code or comparison base changed/
+  )
+})
+
+test('the fingerprint reads odd file names without a shell and changes when such a file changes', () => {
+  const root = greenRepo()
+  const odd = join(root, 'caf\u00e9 $(echo hi).js')
+  writeFileSync(odd, 'one\n')
+  const before = treeFingerprint(root)
+  writeFileSync(odd, 'two\n')
+  const after = treeFingerprint(root)
+  assert.match(before, /^[0-9a-f]{40}$/)
+  assert.notEqual(before, after)
+  assert.equal(treeFingerprint(join(root, 'missing-folder')), null)
+})
+
+test('a docs-only change keeps the repo validate script, and configuration Markdown is not docs-only', () => {
+  const root = greenRepo()
+  const pkgPath = join(root, 'package.json')
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
+  pkg.scripts.validate = 'node -e "process.exit(0)"'
+  writeFileSync(pkgPath, JSON.stringify(pkg))
+  execSync(
+    'git add . && git -c user.name=t -c user.email=t@example.com commit -q -m v',
+    {
+      cwd: root,
+      stdio: 'ignore'
+    }
+  )
+  writeFileSync(join(root, 'README.md'), '# Notes\n')
+  const args = ['--repo', root, '--quick', '--base', 'HEAD', '--dry-run']
+  const docs = runGates(args).output
+  assert.match(docs, /^SCOPE docs-only/m)
+  assert.match(docs, /^validate: npm run validate$/m)
+  assert.doesNotMatch(docs, /^test:/m)
+
+  mkdirSync(join(root, '.github', 'agents'), { recursive: true })
+  writeFileSync(join(root, '.github', 'agents', 'a.agent.md'), '# Agent\n')
+  const config = runGates(args).output
+  assert.doesNotMatch(config, /SCOPE docs-only/)
+  assert.match(config, /^test: npm run test$/m)
 })

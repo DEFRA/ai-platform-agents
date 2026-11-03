@@ -29,24 +29,37 @@ test('a change is docs-only when every file is Markdown, under docs/ or the lice
   assert.equal(isDocsOnly(null), false)
 })
 
-test('an earlier summary is reused only for the same tree and only when it passed', () => {
+test('configuration Markdown under .github is the product, not prose, so it is never docs-only', () => {
+  assert.equal(isDocsOnly(['.github/agents/aip-reviewer.agent.md']), false)
+  assert.equal(isDocsOnly(['README.md', '.github/skills/x/SKILL.md']), false)
+})
+
+test('an earlier summary is reused only for the same tree and base, only when it passed, and only for gates that passed', () => {
   const summary = [
     'GATES x (quick)',
     'TREE abc123',
     'PASS test 4s',
+    'SKIP journey needs a running frontend',
     'COVERAGE repo lines 95 | branches 90 | functions 96',
     '  changed file below target: src/a.js lines 10 < 90',
-    'RESULT PASS (0 failed, 0 warnings, 0 skipped, 0 coverage misses)'
+    'RESULT PASS (0 failed, 0 warnings, 1 skipped, 0 coverage misses)'
   ].join('\n')
   assert.deepEqual(reusableSummary(summary, 'abc123'), {
     ok: true,
+    passed: new Set(['test']),
     coverageLines: [
       'COVERAGE repo lines 95 | branches 90 | functions 96',
       '  changed file below target: src/a.js lines 10 < 90'
     ]
   })
-  assert.match(reusableSummary(summary, 'other').reason, /code changed/)
-  assert.match(reusableSummary(summary, null).reason, /code changed/)
+  assert.match(
+    reusableSummary(summary, 'other').reason,
+    /code or comparison base changed/
+  )
+  assert.match(
+    reusableSummary(summary, null).reason,
+    /code or comparison base changed/
+  )
   assert.match(reusableSummary(null, 'abc123').reason, /no earlier summary/)
   assert.match(reusableSummary('GATES x\nRESULT PASS', 'abc').reason, /no TREE/)
   assert.match(

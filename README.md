@@ -59,7 +59,7 @@ Skills (`.github/skills/aip-*`), grouped:
 - **Test and review:** `test-design`, `test-node`, `test-journey`, `quality-gates` (with `run-gates.mjs`), `code-review`, `security-review`, `validate`.
 - **Ship:** `pull-request` (with `pr-state.mjs`), `deploy-operate`, `docs`.
 
-Cost, time and control: `aip-run-control` ends every loop in a named state (a PR is `SETTLED`, not "probably done"), checks freshness by commit rather than clock, parks waits instead of polling (the 7-day package-age rule: `min-release-age=7` in `.npmrc` makes npm refuse versions published in the last 7 days), offers `guided`, `standard` and `full` autonomy, and keeps a one-screen `state.md` so a fresh chat can continue without being handed context. `run-gates.mjs` skips code suites for docs-only changes and reuses a green run of an identical tree (`--reuse`).
+Cost, time and control: `aip-run-control` ends every loop in a named state (a PR is `SETTLED`, not "probably done"), checks freshness by commit rather than clock, parks waits instead of polling (the 7-day package-age rule: `min-release-age=7` in `.npmrc` makes npm refuse versions published in the last 7 days), and keeps a one-screen `state.md` so a fresh chat can continue without being handed context. `run-gates.mjs` skips code suites for docs-only changes and reuses a green run of an identical tree (`--reuse`).
 
 To stop a mid-run message cancelling running subagents, send it with **Add to Queue** from the Send menu, or set `chat.requestQueuing.defaultAction` to `queue` in your user settings.
 

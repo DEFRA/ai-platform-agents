@@ -56,7 +56,6 @@ MODE: delegated
 RUN: {absolute run folder path}
 STAGE: plan | build | review | docs | release | deploy | record
 SIZE: S | M | L
-AUTONOMY: guided | standard | full
 RESUME: yes (only when continuing a cancelled stage; see aip-run-control)
 OBJECTIVE: {one sentence}
 SCOPE: {repos, task ids or finding ids}
@@ -85,7 +84,7 @@ NEXT: {recommended next stage, or the main risk}
 - User-invoked (no `MODE` line): ask with the ask-questions tool, at most five questions, each with options and a recommendation.
 - Task status in `plan.md`: `todo`, `doing`, `done` (builder, with evidence), `verified` (Reviewer only), `blocked`, `superseded` (replaced by a plan revision).
 - After each task or finding id, append `checkpoint: <id> <status>, <evidence>` to `log.md` (one line), so a stage cancelled by a mid-run message resumes instead of restarting. Before returning, update your rows in `state.md` (rewrite, never append).
-- Run control (loops, waits, autonomy, cancelled subagents, orienting in a new chat): [aip-run-control](../aip-run-control/SKILL.md).
+- Run control (loops, waits, cancelled subagents, orienting in a new chat): [aip-run-control](../aip-run-control/SKILL.md).
 
 ## Tools every agent should use
 

@@ -39,13 +39,15 @@ Read the state first, always, with the script (the whole truth in a few lines: h
 node <ai-platform-agents>/.github/skills/aip-pull-request/scripts/pr-state.mjs --repo DEFRA/<repo> --pr <n> --wait 10
 ```
 
-`--wait <minutes>` polls free of charge while a review or checks are still pending (at most 10 to 15). Exit 0 only for `SETTLED`. Act on the `STATE` and nothing else:
+`--wait <minutes>` polls free of charge while a review or checks are still pending (at most 10 to 15). Exit 0 for `SETTLED` and `HUMAN-REVIEW`. In human-only mode open threads stay visible but never hide failing checks or a new head that needs a request. Act on the `STATE` and nothing else:
 
 | STATE               | Do                                                                                                                                                     |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `REVIEW-PENDING`    | A review is on its way. Do not request another and never report "no unresolved threads". Still pending after the wait: record it and return `pending`. |
 | `REQUEST-STALLED`   | The request is over 30 minutes old and unanswered. Ask the user whether to request again.                                                              |
-| `THREADS-OPEN`      | Handle every listed thread and any review-body finding in one batch (below), then one push, then one request.                                          |
+| `THREADS-OPEN`      | Auto mode (reviews 1 to 3): handle every listed thread and any review-body finding in one batch (below), then one push, then one request.              |
+| `HUMAN-REVIEW`      | Cap reached (review 4 onwards), head reviewed, checks fine: list the open threads for the human and leave them open. Do not route, reply or resolve.   |
+| `INCOMPLETE`        | More than 100 reviews or threads: the read is partial. Never call the PR clear; read it in the GitHub UI.                                              |
 | `CHECKS-FAILING`    | Read only the failing checks' logs.                                                                                                                    |
 | `CHECKS-PENDING`    | Wait with `--wait`; do not poll by hand.                                                                                                               |
 | `NO-COPILOT-REVIEW` | Request one review.                                                                                                                                    |
@@ -62,7 +64,7 @@ This is the only place the rule is stated in full; agents point here.
 
 - Always request, once per head: request a Copilot review at ship and again after the last push of each round, whatever the number of earlier reviews. Never skip a request because a count was reached; never request when `pr-state` shows `REVIEW-PENDING` or the newest Copilot review is already of the head, because that only reviews the same code again.
 - Count first: the `COPILOT reviews N (mode)` line of `pr-state.mjs` reads every review (Copilot auto-reviewing on a push counts). Record the count and mode as `Copilot rounds` in `release.md`.
-- Auto mode (reviews 1 to 3): fix or answer every thread as below, then reply and resolve. In standard autonomy the Orchestrator checks in with the user after the first fix round (`aip-run-control`).
+- Auto mode (reviews 1 to 3): fix or answer every thread as below, then reply and resolve.
 - Human-only mode (review 4 onwards): still request and read the review, but do not route a fix, reply or resolve. List each comment (path, line, one line) in `release.md` and the PR summary, leave the threads unresolved for the human reviewer in the GitHub UI. Never request a person the user has not named.
 - A finding only in a review body, not a thread, follows the same split: fix and reply on the PR (there is no thread to resolve) in auto mode, list it in human-only mode.
 - A push round with no comments left open and every thread resolved needs nothing more; a later push that changes the PR is requested again.
