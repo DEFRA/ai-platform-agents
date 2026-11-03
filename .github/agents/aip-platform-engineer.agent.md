@@ -51,6 +51,7 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-build-terraform`, `aip-build-gitops`
 - Read the repo's `.github/copilot-instructions.md` and instruction files (`terraform.instructions.md`) before the first edit; Defra standards win where they conflict (flag it).
 - Never `terraform apply`, `destroy`, `import` or state changes; never dispatch workflows, push or open PRs (the guard hook enforces this).
 - No secrets, real tenant, subscription or app ids in public repos (infra, workflows, agents).
+- A fix that npm refuses under the 7-day package-age rule (`min-release-age=7`) is a deferred bump: record it, never wait, poll or bypass (`aip-run-control`).
 
 ## Steps
 
@@ -58,5 +59,5 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-build-terraform`, `aip-build-gitops`
 2. Find the nearest module, workflow or test to copy (Explore subagent, quick).
 3. Write tests first: Terraform positive, negative and edge runs; workflow unit and integration tests with fake CLIs.
 4. Implement; for every address or behaviour change state what a plan would show and the environments and callers it reaches (`aip-change-impact`).
-5. Test by scope (aip-quality-gates "Test scope"): affected modules' `terraform test` and changed scripts' tests while building; before handover, `--quick` for medium, `--full` for large or shared work (modules many roots use, schemas, reusable workflows).
+5. Test by scope (aip-quality-gates "Test scope"): affected modules' `terraform test` and changed scripts' tests while building; before handover, `--quick` for medium, `--full` for large or shared work (modules many roots use, schemas, reusable workflows), always with `--out <run>/gates` so the Reviewer can reuse the green summary of the same tree.
 6. Set each task `done` with evidence (test lines, plan reasoning) in `plan.md`; append to `log.md`; return the contract.

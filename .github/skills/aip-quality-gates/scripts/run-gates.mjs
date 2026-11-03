@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Runs one repository's local quality gates and prints a compact summary. Full logs go to --out.
-// Usage: node run-gates.mjs --repo <path> [--quick|--full] [--base origin/main] [--out <dir>] [--dry-run]
+// Usage: node run-gates.mjs --repo <path> [--quick|--full] [--base origin/main] [--out <dir>] [--reuse <summary>] [--scope auto|full] [--dry-run]
+import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -643,18 +644,128 @@ function formatResult(result) {
  * @param {Array<object>} results Step results.
  * @param {string[]} coverageLines Coverage lines.
  * @param {number} coverageBelow Count of coverage misses.
+ * @param {string[]} [notes] Lines printed under the header (scope, reuse, tree fingerprint).
  * @returns {string}
  */
-export function summarise(name, mode, results, coverageLines, coverageBelow) {
+export function summarise(
+  name,
+  mode,
+  results,
+  coverageLines,
+  coverageBelow,
+  notes = []
+) {
   const count = (kind) => results.filter((r) => r.result === kind).length
   const failed = count('FAIL')
   const verdict = failed || coverageBelow ? 'FAIL' : 'PASS'
   return [
     `GATES ${name} (${mode})`,
+    ...notes,
     ...results.flatMap(formatResult),
     ...coverageLines,
     `RESULT ${verdict} (${failed} failed, ${count('WARN')} warnings, ${count('SKIP')} skipped, ${coverageBelow} coverage misses)`
   ].join('\n')
+}
+
+// Configuration under .github (agents, skills, prompts, workflows) is the product here, not prose.
+const DOCS_FILE = /^(?!\.github\/)(.*\.md|docs\/.*|LICENCE)$/i
+
+/**
+ * Whether every changed file is documentation, so code suites and scans can prove nothing new.
+ * An empty or unknown change list is never docs-only; nothing under `.github/` is documentation.
+ * @param {string[] | null} files Changed files relative to the repo root.
+ * @returns {boolean}
+ */
+export function isDocsOnly(files) {
+  return Boolean(files?.length) && files.every((file) => DOCS_FILE.test(file))
+}
+
+// Docs-only keeps formatting, linting, the secrets scan, the repo's own `validate` (links and references)
+// and a build-only `test` (a repo with no unit tests by decision).
+function docsOnlySteps(steps, repo) {
+  const keep = new Set(['format', 'lint', 'secrets'])
+  if (!requiresCoverage(repo)) keep.add('test')
+  const kept = steps.filter((step) => keep.has(step.id))
+  if (repo.scripts.validate)
+    kept.push({ id: 'validate', command: 'npm run validate', cwd: repo.root })
+  return kept
+}
+
+function git(root, args) {
+  return spawnSync('git', args, {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024
+  })
+}
+
+/**
+ * Fingerprints the working tree (HEAD, tracked changes, untracked files and the comparison base) so a
+ * green run on exactly this code and diff can be cited later instead of repeated. Test output folders
+ * are left out. Paths are read NUL-delimited and passed to git as arguments, never through a shell.
+ * @param {string} root Repository root.
+ * @param {string} [outDir] Gate output folder, left out when inside the repo.
+ * @param {string | null} [base] Resolved comparison base, as the changed-file coverage uses it.
+ * @returns {string | null} A SHA-1, or null when git cannot say (reuse is then refused).
+ */
+export function treeFingerprint(root, outDir = '', base = null) {
+  const head = git(root, ['rev-parse', 'HEAD'])
+  const diff = git(root, ['diff', 'HEAD'])
+  const listed = git(root, ['ls-files', '--others', '--exclude-standard', '-z'])
+  const baseSha = base
+    ? git(root, ['rev-parse', '--verify', `${base}^{commit}`])
+    : { status: 0, stdout: 'none' }
+  if ([head, diff, listed, baseSha].some((step) => step.status !== 0))
+    return null
+  const outRel = outDir ? toPosix(relative(root, outDir)) : ''
+  const skip = (file) =>
+    /^(coverage\/|lcov\.info$)/.test(file) ||
+    (outRel && !outRel.startsWith('..') && file.startsWith(`${outRel}/`))
+  const untracked = []
+  for (const file of listed.stdout.split('\0').filter(Boolean).sort(byName)) {
+    if (skip(toPosix(file))) continue
+    const hashed = git(root, ['hash-object', '--', file])
+    if (hashed.status !== 0) return null
+    untracked.push(`${toPosix(file)} ${hashed.stdout.trim()}`)
+  }
+  return createHash('sha1')
+    .update(
+      [
+        head.stdout.trim(),
+        baseSha.stdout.trim(),
+        diff.stdout,
+        ...untracked
+      ].join('\n')
+    )
+    .digest('hex')
+}
+
+/**
+ * Decides whether an earlier summary proves this exact tree and base, and which gates it proves:
+ * only a step with a `PASS` line counts, so skipped, missing or docs-only runs prove nothing for it.
+ * @param {string | null} summary Text of an earlier `<repo>-summary.txt`, or null when absent.
+ * @param {string | null} fingerprint Fingerprint of the current tree and base.
+ * @returns {{ ok: true, passed: Set<string>, coverageLines: string[] } | { ok: false, reason: string }}
+ */
+export function reusableSummary(summary, fingerprint) {
+  if (summary === null) return { ok: false, reason: 'no earlier summary found' }
+  const tree = /^TREE (\w+)$/m.exec(summary)?.[1]
+  if (!tree) return { ok: false, reason: 'earlier summary has no TREE line' }
+  if (!fingerprint || tree !== fingerprint)
+    return {
+      ok: false,
+      reason: 'the code or comparison base changed since that run'
+    }
+  if (!/^RESULT PASS/m.test(summary))
+    return { ok: false, reason: 'that run did not pass' }
+  const lines = summary.split(/\r?\n/)
+  const passed = new Set(
+    lines.flatMap((line) => /^PASS (\S+)/.exec(line)?.[1] ?? [])
+  )
+  const coverageLines = lines.filter((line) =>
+    /^COVERAGE |^ {2}changed[ -]file/.test(line)
+  )
+  return { ok: true, passed, coverageLines }
 }
 
 function argValue(args, flag, fallback) {
@@ -718,30 +829,78 @@ export function runGates(args) {
   const mode = args.includes('--full') ? 'full' : 'quick'
   const ref = argValue(args, '--base', 'origin/main')
   if (!/^[\w./-]+$/.test(ref)) throw new Error(`Unsafe --base value: ${ref}`)
+  const scope = argValue(args, '--scope', 'auto')
+  if (!['auto', 'full'].includes(scope))
+    throw new Error(`Unsafe --scope value: ${scope}`)
   const base = mergeBase(root, ref)
   const name = basename(root)
   const repo = readRepo(root)
-  const steps = planGates(repo, mode, base)
+  const changed = changedFiles(root, base)
+  const docsOnly = scope === 'auto' && isDocsOnly(changed)
+  const notes = []
+  let steps = planGates(repo, mode, base)
+  if (docsOnly) {
+    steps = docsOnlySteps(steps, repo)
+    notes.push(
+      `SCOPE docs-only (${changed.length} file(s)): code suites, coverage, audits and scans skipped; use --scope full to force them`
+    )
+  }
 
   if (args.includes('--dry-run')) {
     const describe = (step) =>
       step.skip ? `SKIP ${step.skip}` : (step.command ?? 'built-in check')
-    const lines = steps.map((step) => `${step.id}: ${describe(step)}`)
+    const lines = [
+      ...notes,
+      ...steps.map((step) => `${step.id}: ${describe(step)}`)
+    ]
     return { output: `${lines.join('\n')}\n`, exitCode: 0 }
   }
 
   const outDir = resolve(argValue(args, '--out', join(tmpdir(), 'aip-gates')))
   mkdirSync(outDir, { recursive: true })
+  const fingerprint = treeFingerprint(root, outDir, base)
+  const reuseFile = argValue(args, '--reuse', null)
+  let carried = null
+  let reused = []
+  if (reuseFile && !docsOnly) {
+    const earlier = existsSync(reuseFile)
+      ? readFileSync(reuseFile, 'utf8')
+      : null
+    const verdict = reusableSummary(earlier, fingerprint)
+    if (verdict.ok) {
+      const quickIds = planGates(repo, 'quick', base).map((step) => step.id)
+      reused = quickIds.filter((id) => verdict.passed.has(id))
+      steps = steps.filter((step) => !reused.includes(step.id))
+      carried = reused.includes('test') ? verdict.coverageLines : null
+      notes.push(
+        reused.length
+          ? `REUSED ${reused.join(', ')} from ${reuseFile}: same code and base, those gates passed there; the rest run`
+          : `REUSE found nothing to reuse in ${reuseFile}; every gate runs`
+      )
+    } else {
+      notes.push(`REUSE refused: ${verdict.reason}; every gate runs`)
+    }
+  }
+  if (fingerprint) notes.push(`TREE ${fingerprint}`)
+
   const since = Date.now() - 1000
   const cache = {}
-  const results = steps.map((step) => runStep(step, name, outDir, cache))
-  const { lines, below } = coverageReport(
-    root,
-    changedFiles(root, base),
-    since,
-    requiresCoverage(repo)
+  const results = [
+    ...reused.map((id) => ({ id, result: 'PASS', note: 'reused' })),
+    ...steps.map((step) => runStep(step, name, outDir, cache))
+  ]
+  const fresh = docsOnly
+    ? { lines: ['COVERAGE skipped (docs-only change)'], below: 0 }
+    : (carried && { lines: carried, below: 0 }) ||
+      coverageReport(root, changed, since, requiresCoverage(repo))
+  const summary = summarise(
+    name,
+    mode,
+    results,
+    fresh.lines,
+    fresh.below,
+    notes
   )
-  const summary = summarise(name, mode, results, lines, below)
   writeFileSync(join(outDir, `${name}-summary.txt`), summary)
   return {
     output: `${summary}\n`,

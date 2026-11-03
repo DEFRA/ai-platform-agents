@@ -2,6 +2,35 @@
 
 Keep every file short. Link to sources; do not copy them.
 
+## state.md
+
+Rewritten, never appended; at most 30 lines. A fresh chat reads this first (`aip-run-control`).
+
+```markdown
+# State: {yyyy-mm-dd}-{slug}
+
+Updated: {yyyy-mm-dd hh:mm} by {agent} | Stage: {plan | build | review | docs | release | deploy | record | closed}
+
+## Now
+
+{One to three lines: what is happening, what is next, what the user must decide.}
+
+## Groups
+
+| Group | Repo | Branch @ head | PR  | pr-state | Open items | Next |
+| ----- | ---- | ------------- | --- | -------- | ---------- | ---- |
+
+## Waiting
+
+| What                  | Until (UTC)   | Then (exact command)                                     |
+| --------------------- | ------------- | -------------------------------------------------------- |
+| Deferred bump {pkg@v} | {eligible at} | `npm update {pkg}`, `npm ci`, tests, commit the lockfile |
+
+## Inbox (requests parked mid-run, verbatim)
+
+- {yyyy-mm-dd hh:mm}: {the user's words}
+```
+
 ## brief.md
 
 ```markdown
@@ -89,6 +118,8 @@ PR groups: P1 = {one purpose, e.g. "credential expiry feature (backend)"}. Group
 ```markdown
 ## Round {n}: {PASS | CHANGES-REQUIRED | BLOCKED}
 
+Reviewed: {repo}@{sha} (or tree fingerprint), one per repo. Later fix-pass commits listed in `log.md` are covered by this round.
+
 | Repo | Gate result | Coverage (lines, branches, functions) | Scans |
 | ---- | ----------- | ------------------------------------- | ----- |
 
@@ -100,6 +131,19 @@ PR groups: P1 = {one purpose, e.g. "credential expiry feature (backend)"}. Group
 
 | AC  | Status (met, partial, unmet, untested) | Evidence |
 | --- | -------------------------------------- | -------- |
+
+### Copilot threads (one row per open PR)
+
+Within the cap (Copilot reviews 1 to 3) nothing may be left unresolved: an unresolved thread is a finding owned by the builder and the verdict is `CHANGES-REQUIRED`. From review 4 (cap reached) run `pr-state.mjs` once more; whatever is still unresolved is listed for the human and does not block. A pending review is reported as pending, never as "nothing unresolved".
+
+| Repo and PR  | Copilot reviews (mode) | pr-state       | Unresolved | Result                                    |
+| ------------ | ---------------------- | -------------- | ---------- | ----------------------------------------- |
+| backend#58   | 2 (auto)               | SETTLED        | 0          | OK: all resolved                          |
+| workflows#17 | 3 (auto)               | THREADS-OPEN   | 2          | Findings F7, F8 (owner Platform Engineer) |
+| worker#1     | 5 (human-only)         | THREADS-OPEN   | 1          | Listed for the human, not a finding       |
+| infra#31     | 2 (auto)               | REVIEW-PENDING | n/a        | Pending: check again, do not pass         |
+
+For the human reviewer (cap reached only): `PRRT_xxx src/a.js:42 one-line summary`.
 ```
 
 ## release.md
@@ -109,4 +153,4 @@ PR groups: P1 = {one purpose, e.g. "credential expiry feature (backend)"}. Group
 | ---- | ------ | --- | ------ | ---------- | ---------------------------- | --------------- | ------------ | ------ | -------- |
 ```
 
-Copilot rounds: the review count from the API and the handling mode (auto for reviews 1 to 3, human-only from 4) per `aip-pull-request`; a review is always requested. List any human-only comments under the table.
+Copilot rounds: the review count and handling mode from the `COPILOT` line of `pr-state.mjs` (auto for reviews 1 to 3, human-only from 4) per `aip-pull-request`; a review is always requested, once per head. List any human-only comments under the table. The PR's current `STATE` goes in `state.md`.

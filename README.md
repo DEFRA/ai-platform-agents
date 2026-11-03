@@ -20,14 +20,15 @@ Copilot agents, skills, prompts and guard hooks that run AI Platform delivery ac
 
 Pick **AIP Orchestrator** or type `/aip-start` with a requirement or a link to a plan item, design page, spec or Plan-mode plan. Approve the plan (G1), shipping (G2) and any deploy (G3).
 
-| Prompt             | Does                                                     |
-| ------------------ | -------------------------------------------------------- |
-| `/aip-start`       | New run through the Orchestrator                         |
-| `/aip-resume`      | Continue a run in a fresh chat from its run folder       |
-| `/aip-refine-plan` | Turn a Copilot Plan-mode plan into an AIP brief and plan |
-| `/aip-review`      | Independent review of current changes, outside a run     |
-| `/hve-create`      | Create an HVE board item from a design PR or an idea     |
-| `/hve-move`        | Move an HVE board item to another column                 |
+| Prompt             | Does                                                                                      |
+| ------------------ | ----------------------------------------------------------------------------------------- |
+| `/aip-start`       | New run through the Orchestrator                                                          |
+| `/aip-resume`      | Continue a run in a fresh chat from its run folder (`state.md`, live PR state)            |
+| `/aip-status`      | Where a run stands now: PR states, waits, parked requests; changes nothing but `state.md` |
+| `/aip-refine-plan` | Turn a Copilot Plan-mode plan into an AIP brief and plan                                  |
+| `/aip-review`      | Independent review of current changes, outside a run                                      |
+| `/hve-create`      | Create an HVE board item from a design PR or an idea                                      |
+| `/hve-move`        | Move an HVE board item to another column                                                  |
 
 The two `/hve-` prompts run the [AI Platform HVE Board](https://github.com/orgs/DEFRA/projects/23) by the guide in `ai-platform-discovery-docs` `docs/hve-board.md`, for example `/hve-create https://github.com/DEFRA/ai-platform-discovery-docs/pull/64 ready` or `/hve-move #42 in progress`. They need `gh` signed in with the `project` scope (`gh auth refresh -s project`).
 
@@ -51,12 +52,16 @@ flowchart LR
 
 Skills (`.github/skills/aip-*`), grouped:
 
-- **Flow:** `handoff`, `evidence`, `intake`, `plan`, `design`, `change-impact`.
+- **Flow:** `handoff`, `run-control`, `evidence`, `intake`, `plan`, `design`, `change-impact`.
 - **Standards:** `defra-standards`, `cdp`, `architecture`, `clean-code`.
 - **UI:** `gds-ui`, `user-flows`, `accessibility` (with `axe-scan.mjs`).
 - **Build:** `build-node`, `build-terraform`, `build-gitops`.
 - **Test and review:** `test-design`, `test-node`, `test-journey`, `quality-gates` (with `run-gates.mjs`), `code-review`, `security-review`, `validate`.
-- **Ship:** `pull-request`, `deploy-operate`, `docs`.
+- **Ship:** `pull-request` (with `pr-state.mjs`), `deploy-operate`, `docs`.
+
+Cost, time and control: `aip-run-control` ends every loop in a named state (a PR is `SETTLED`, not "probably done"), checks freshness by commit rather than clock, parks waits instead of polling (the 7-day package-age rule: `min-release-age=7` in `.npmrc` makes npm refuse versions published in the last 7 days), and keeps a one-screen `state.md` so a fresh chat can continue without being handed context. `run-gates.mjs` skips code suites for docs-only changes and reuses a green run of an identical tree (`--reuse`).
+
+To stop a mid-run message cancelling running subagents, send it with **Add to Queue** from the Send menu, or set `chat.requestQueuing.defaultAction` to `queue` in your user settings.
 
 Run state lives in `.copilot-tracking/runs/{date}-{slug}/` (git-ignored). The guard hook denies `--no-verify`, force push (including `git -C`), `reset --hard`, local Terraform apply and state changes, PR merges (CLI and MCP), re-runs, `.env` access and hand edits to tenants or deployments state; asks before push, PR, dispatch, Azure writes, recursive deletes and edits to agents, hooks or workspace settings; and limits each agent's edit paths.
 
