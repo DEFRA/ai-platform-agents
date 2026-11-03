@@ -11,7 +11,7 @@ Create one item on the [AI Platform HVE Board](https://github.com/orgs/DEFRA/pro
 3. Column: "ready", "prioritised" or "priority" means 2. Prioritised / Ready; anything else, 1. Opportunities / Ideas.
 4. Source: for a pull request link, read it with `gh pr view <link> --json title,body,files` and its changed Markdown; otherwise use my description. If neither says what outcome is wanted, ask me in one question.
 5. Write the item: title as an outcome (who can now do what); Outcome, Why it matters, Done when, Guardrails, Delivered, Learned and next, Links. For Ready, three to five observable Done when checks and the Guardrails that apply; for an opportunity, "To agree when prioritised". Link the pull request. No secrets or personal data.
-6. If an open item on the board has the same outcome, tell me its number instead of creating another.
-7. Create the issue in `DEFRA/ai-platform-discovery-docs`, add it to project 23 and set the column.
+6. If an open item on the board (`gh project item-list 23 --owner DEFRA --limit 1000 --format json`, the whole board) has the same outcome, tell me its number instead of creating another.
+7. Create the issue with `--repo DEFRA/ai-platform-discovery-docs` (never the current checkout), add it to project 23 and set the column.
 
 Reply in at most three lines: the item number and link, its title and its column.
