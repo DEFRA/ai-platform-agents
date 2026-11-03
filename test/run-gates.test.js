@@ -13,6 +13,7 @@ import {
   parseGitHubRemote,
   parseLcov,
   planGates,
+  requiresCoverage,
   resultFor,
   splitEnvPrefix,
   summarise
@@ -285,4 +286,31 @@ test('summary fails on a failed step or a coverage miss', () => {
   assert.match(fail, /\| boom/)
   const coverage = summarise('repo', 'quick', [], [], 2)
   assert.match(coverage, /RESULT FAIL .*2 coverage misses/)
+})
+
+test('requires coverage for unit tests, not for journey tests or discovery-docs', () => {
+  const repo = (overrides) => ({
+    root: '/r/ai-platform-frontend',
+    scripts: { test: 'vitest run --coverage' },
+    github: { owner: 'DEFRA', repo: 'ai-platform-frontend' },
+    ...overrides
+  })
+  assert.equal(requiresCoverage(repo({})), true)
+  assert.equal(requiresCoverage(repo({ scripts: {} })), false)
+  assert.equal(
+    requiresCoverage(repo({ scripts: { test: 'wdio run wdio.conf.js' } })),
+    false
+  )
+  const discovery = {
+    root: '/r/ai-platform-discovery-docs',
+    scripts: { test: 'npm run build' },
+    github: { owner: 'DEFRA', repo: 'ai-platform-discovery-docs' }
+  }
+  assert.equal(requiresCoverage(discovery), false)
+  assert.equal(requiresCoverage({ ...discovery, github: null }), false)
+  assert.equal(
+    requiresCoverage({ ...discovery, root: '/r/my-clone' }),
+    false,
+    'the remote names the repository even when the folder does not'
+  )
 })

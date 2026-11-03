@@ -1,6 +1,6 @@
 ---
 name: aip-design
-description: 'Record or change AI Platform design direction in ai-platform-discovery-docs before building: design pack pages (design-*.md), decisions (decisions.json D records), cloud designs (AR records), decision-history entries, diagrams and site tests, with options and evidence. Use when a requirement conflicts with or extends the confirmed design, a new decision is needed, or a design page must change.'
+description: 'Record or change AI Platform design direction in ai-platform-discovery-docs before building: design pack pages (design-*.md), decisions (decisions.json D records), cloud designs (AR records), decision-history entries and diagrams, with options and evidence. Use when a requirement conflicts with or extends the confirmed design, a new decision is needed, or a design page must change.'
 license: OGL-UK-3.0
 ---
 
@@ -31,8 +31,8 @@ The design pack in `ai-platform-discovery-docs` is the authority for direction. 
 4. Append a dated entry to `docs/decision-history.md` and update the "Direction in force" rows it decides.
 5. Sweep for drift: search pages, data, `docs/` and `.github/` for the old wording; fix or mark superseded with a date and link. Remove what is fully superseded.
 6. Set `ms.date` on every Markdown file changed.
-7. Pin it in `test/site.test.js`: an `assertCopy` for the new direction and an `assert.doesNotMatch` for superseded wording. Update hard-coded counts where pages, sections or diagrams change.
-8. Verify: `npm run lint` and `npm test`; `npm run check` when sections, anchors, diagrams or links change (it takes over 10 minutes; run it in a terminal and send the output to a file).
+7. No unit or browser tests: do not add or update anything in that repo's `test/` folder (its rules, 3 November 2026).
+8. Verify by rendering: `npm run diagrams:check` when a diagram changed, then `npm run build` (also `npm test`, under a minute), which validates links and anchors and renders the pages; open changed figures with `npm run dev`. Never `npm run check`, `test:site` or `test:browser`.
 
 ## Content rules
 

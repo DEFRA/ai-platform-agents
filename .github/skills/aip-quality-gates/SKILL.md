@@ -83,5 +83,5 @@ Affected tests:
 
 - Never weaken a gate to pass: no disabled rules, skipped tests, lowered thresholds or `--no-verify`.
 - Fix the cause, re-run the failing test, then the scope for the change size (above).
-- Discovery docs: the script runs `lint` and `test`; run `npm run check` yourself when sections, anchors, diagrams or links change (over 10 minutes; send output to a file).
+- Discovery docs: the script runs `lint` and `test`, and `test` there is only the site build (under a minute), so no coverage is required. It has no required unit or browser tests (its rules, 3 November 2026): never run `npm run check`, `test:site` or `test:browser`, and never add or update its tests.
 - Journey tests need a running frontend, so the script reports them as skipped; see `aip-test-journey`. Accessibility scans: `aip-accessibility`.

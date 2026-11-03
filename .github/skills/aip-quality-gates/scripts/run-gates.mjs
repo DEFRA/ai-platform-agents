@@ -611,9 +611,20 @@ function coverageReport(root, changed, since, required) {
   }
 }
 
-// Coverage is required when the repo runs unit tests (not WebdriverIO journey tests).
-const requiresCoverage = (repo) =>
-  Boolean(repo.scripts.test) && !/\bwdio\b/.test(repo.scripts.test)
+// Repositories whose `test` runs no unit tests by decision: discovery-docs only renders its site (3 November 2026).
+const NO_UNIT_TEST_REPOS = new Set(['ai-platform-discovery-docs'])
+
+/**
+ * Whether the repo's tests must leave a fresh coverage report: true when it runs unit tests,
+ * not for WebdriverIO journey tests or a repository that has no unit tests by decision.
+ * @param {{ root: string, scripts: Record<string, string>, github: { repo: string } | null }} repo
+ * @returns {boolean}
+ */
+export function requiresCoverage(repo) {
+  if (NO_UNIT_TEST_REPOS.has(repo.github?.repo ?? basename(repo.root)))
+    return false
+  return Boolean(repo.scripts.test) && !/\bwdio\b/.test(repo.scripts.test)
+}
 
 function formatResult(result) {
   const parts = [result.result.padEnd(4), result.id]
