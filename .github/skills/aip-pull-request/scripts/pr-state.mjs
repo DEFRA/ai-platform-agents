@@ -17,24 +17,27 @@ const FAILED = new Set(['FAILURE', 'TIMED_OUT', 'CANCELLED', 'ERROR'])
 
 const QUERY = `query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){
 state isDraft headRefOid
-reviews(last:100){pageInfo{hasPreviousPage} nodes{author{login} submittedAt body commit{oid} comments{totalCount}}}
-timelineItems(last:50,itemTypes:[REVIEW_REQUESTED_EVENT]){nodes{... on ReviewRequestedEvent{createdAt requestedReviewer{... on Bot{login} ... on User{login}}}}}
+reviews(last:100){pageInfo{hasPreviousPage} nodes{author{__typename login} submittedAt body commit{oid} comments{totalCount}}}
+timelineItems(last:50,itemTypes:[REVIEW_REQUESTED_EVENT]){nodes{... on ReviewRequestedEvent{createdAt requestedReviewer{__typename ... on Bot{login} ... on User{login}}}}}
 reviewThreads(first:100){pageInfo{hasNextPage} nodes{id isResolved isOutdated comments(first:1){nodes{path line body}}}}
 commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){nodes{__typename ... on CheckRun{name conclusion status} ... on StatusContext{context state}}}}}}}
 }}}`
 
-const isCopilot = (login) => /^copilot/i.test(login ?? '')
+// Only GitHub's own reviewer bot counts: a person whose login starts with "copilot" must not be trusted as it.
+const isCopilot = (actor) =>
+  /^copilot-pull-request-reviewer(\[bot\])?$/i.test(actor?.login ?? '') &&
+  (actor.__typename ?? 'Bot') === 'Bot'
 const toMillis = (iso) => Date.parse(iso)
 
 function copilotReviews(pr) {
   return pr.reviews.nodes
-    .filter((review) => isCopilot(review.author?.login))
+    .filter((review) => isCopilot(review.author))
     .sort((a, b) => toMillis(a.submittedAt) - toMillis(b.submittedAt))
 }
 
 function latestCopilotRequest(pr) {
   const times = pr.timelineItems.nodes
-    .filter((event) => isCopilot(event.requestedReviewer?.login))
+    .filter((event) => isCopilot(event.requestedReviewer))
     .map((event) => toMillis(event.createdAt))
   return times.length ? Math.max(...times) : null
 }

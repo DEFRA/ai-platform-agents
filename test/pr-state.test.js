@@ -268,6 +268,35 @@ test('in human-only mode open threads stay visible without hiding checks or a ne
   )
 })
 
+test('only the Copilot reviewer bot counts, not a person whose login starts with copilot', () => {
+  const impostor = [
+    review('copilot-fan', HEAD, 5),
+    review(COPILOT, HEAD, 5, { author: { login: COPILOT, __typename: 'User' } })
+  ]
+  const result = assess(pr({ reviews: impostor }), NOW)
+  assert.equal(result.copilot.count, 0)
+  assert.equal(result.state, 'NO-COPILOT-REVIEW')
+  const requested = assess(
+    pr({
+      reviews: [review(COPILOT, HEAD, 5)],
+      requests: [
+        {
+          createdAt: minutesAgo(1),
+          requestedReviewer: { login: 'copilot-fan', __typename: 'User' }
+        }
+      ]
+    }),
+    NOW
+  )
+  assert.equal(requested.copilot.pendingMinutes, null)
+  const bot = [
+    review(`${COPILOT}[bot]`, HEAD, 5, {
+      author: { login: `${COPILOT}[bot]`, __typename: 'Bot' }
+    })
+  ]
+  assert.equal(assess(pr({ reviews: bot }), NOW).state, 'SETTLED')
+})
+
 test('a connection longer than one page is never reported as clear', () => {
   const moreThreads = pr({ reviews: [review(COPILOT, HEAD, 5)] })
   moreThreads.reviewThreads.pageInfo = { hasNextPage: true }
