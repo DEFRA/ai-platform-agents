@@ -1,6 +1,6 @@
 ---
 name: aip-docs
-description: "Keep AI Platform documentation true after a change: docs/plans (remaining.md to implemented/), implemented-features.md, READMEs, repo instructions, and the discovery site's built state (build-stories status, decision-history, ms.date, site tests) as a separate PR. Concise, linked, dated. Use when updating docs, plans, README, implemented features or recording built state."
+description: "Keep AI Platform documentation true after a change: docs/plans (remaining.md to implemented/), implemented-features.md, READMEs, repo instructions, and the discovery site's built state (build-stories status, decision-history, ms.date) as a separate PR. Concise, linked, dated. Use when updating docs, plans, README, implemented features or recording built state."
 license: OGL-UK-3.0
 ---
 
@@ -29,8 +29,8 @@ Follow that repo's "Every change: propagate, date and record" steps:
 1. Record built state only, never a new direction; cite the version and date; say "in an open pull request" for anything unmerged. Built is not accepted, and nothing is deployed without evidence.
 2. Sweep for contradicted statements; set `ms.date` on each changed Markdown file.
 3. Append to `docs/decision-history.md` (say whether decision records changed) and add a "Delivered on" note to `docs/design-pack-plan.md` when design work lands.
-4. Pin copy in `test/site.test.js` (`assertCopy`, and `assert.doesNotMatch` for superseded wording; avoid wording that also matches page boilerplate).
-5. Run `npm run lint` and `npm test`; `npm run check` when sections, anchors, diagrams or links change (over 10 minutes; output to a file).
+4. No unit or browser tests: do not add or update anything in that repo's `test/` folder (its rules, 3 November 2026).
+5. Verify by rendering: `npm run build` (also `npm test`, under a minute) validates links and anchors and renders the site; `npm run lint` when JavaScript changed. Never `npm run check`, `test:site` or `test:browser`.
 
 If nothing needs changing, say "build status checked, no change".
 
