@@ -9,15 +9,54 @@ import {
   findTerraformTestDirs,
   findUnpinnedActions,
   findUnpinnedDependencies,
+  isDocsOnly,
   normaliseRoot,
   parseGitHubRemote,
   parseLcov,
   planGates,
   requiresCoverage,
   resultFor,
+  reusableSummary,
   splitEnvPrefix,
   summarise
 } from '../.github/skills/aip-quality-gates/scripts/run-gates.mjs'
+
+test('a change is docs-only when every file is Markdown, under docs/ or the licence', () => {
+  assert.equal(isDocsOnly(['README.md', 'docs/plans/a.json', 'LICENCE']), true)
+  assert.equal(isDocsOnly(['README.md', 'src/a.js']), false)
+  assert.equal(isDocsOnly(['scripts/run.sh']), false)
+  assert.equal(isDocsOnly([]), false)
+  assert.equal(isDocsOnly(null), false)
+})
+
+test('an earlier summary is reused only for the same tree and only when it passed', () => {
+  const summary = [
+    'GATES x (quick)',
+    'TREE abc123',
+    'PASS test 4s',
+    'COVERAGE repo lines 95 | branches 90 | functions 96',
+    '  changed file below target: src/a.js lines 10 < 90',
+    'RESULT PASS (0 failed, 0 warnings, 0 skipped, 0 coverage misses)'
+  ].join('\n')
+  assert.deepEqual(reusableSummary(summary, 'abc123'), {
+    ok: true,
+    coverageLines: [
+      'COVERAGE repo lines 95 | branches 90 | functions 96',
+      '  changed file below target: src/a.js lines 10 < 90'
+    ]
+  })
+  assert.match(reusableSummary(summary, 'other').reason, /code changed/)
+  assert.match(reusableSummary(summary, null).reason, /code changed/)
+  assert.match(reusableSummary(null, 'abc123').reason, /no earlier summary/)
+  assert.match(reusableSummary('GATES x\nRESULT PASS', 'abc').reason, /no TREE/)
+  assert.match(
+    reusableSummary(
+      'TREE abc123\nRESULT FAIL (1 failed, 0 warnings, 0 skipped, 0 coverage misses)',
+      'abc123'
+    ).reason,
+    /did not pass/
+  )
+})
 
 test('splits Unix env prefixes from npm scripts', () => {
   assert.deepEqual(

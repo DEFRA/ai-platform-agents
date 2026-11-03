@@ -259,3 +259,103 @@ test('the secrets scan reads untracked files without staging them, and passes a 
     restorePath(previous)
   }
 })
+
+const FULL_LCOV = LCOV.replace('LH:5', 'LH:10')
+
+function greenRepo() {
+  const root = mkdtempSync(join(tmpdir(), 'aip-green-'))
+  const pass = 'node -e "process.exit(0)"'
+  const pkg = {
+    name: 'green',
+    scripts: { 'format:check': pass, lint: pass, test: 'node write-lcov.mjs' }
+  }
+  writeFileSync(join(root, 'package.json'), JSON.stringify(pkg))
+  writeFileSync(
+    join(root, 'write-lcov.mjs'),
+    `import { mkdirSync, writeFileSync } from 'node:fs'\nmkdirSync('coverage', { recursive: true })\nwriteFileSync('coverage/lcov.info', ${JSON.stringify(FULL_LCOV)})\n`
+  )
+  writeFileSync(join(root, '.gitignore'), 'coverage/\n')
+  const git = (args) => execSync(`git ${args}`, { cwd: root, stdio: 'ignore' })
+  git('init -q')
+  git('add .')
+  git('-c user.name=t -c user.email=t@example.com commit -q -m init')
+  return root
+}
+
+test('a docs-only change skips the code suite and coverage, and --scope full brings them back', () => {
+  const root = greenRepo()
+  writeFileSync(join(root, 'README.md'), '# Notes\n')
+  const options = ['--repo', root, '--quick', '--base', 'HEAD']
+
+  const docs = runGates([...options, '--out', join(root, 'out-docs')])
+  assert.match(docs.output, /SCOPE docs-only \(1 file\(s\)\)/)
+  assert.match(docs.output, /PASS format/)
+  assert.match(docs.output, /PASS lint/)
+  assert.doesNotMatch(docs.output, /PASS test/)
+  assert.match(docs.output, /COVERAGE skipped \(docs-only change\)/)
+  assert.equal(docs.exitCode, 0)
+
+  const forced = runGates([
+    ...options,
+    '--scope',
+    'full',
+    '--out',
+    join(root, 'out-full')
+  ])
+  assert.match(forced.output, /PASS test/)
+  assert.doesNotMatch(forced.output, /SCOPE docs-only/)
+  assert.throws(() => runGates([...options, '--scope', 'x']), /Unsafe --scope/)
+})
+
+test('a docs-only change still runs a build-only test for a repo with no unit tests', () => {
+  const root = greenRepo()
+  execSync(
+    'git remote add origin https://github.com/DEFRA/ai-platform-discovery-docs.git',
+    {
+      cwd: root,
+      stdio: 'ignore'
+    }
+  )
+  writeFileSync(join(root, 'page.md'), '# Page\n')
+  const plan = runGates([
+    '--repo',
+    root,
+    '--quick',
+    '--base',
+    'HEAD',
+    '--dry-run'
+  ])
+  assert.match(plan.output, /^test: npm run test$/m)
+})
+
+test('a green run on the same code is reused, and refused once the code changes', () => {
+  const root = greenRepo()
+  mkdirSync(join(root, 'src'))
+  writeFileSync(join(root, 'src', 'a.js'), 'export const a = 1\n')
+  const out = join(root, 'gates-out')
+  const summaryPath = join(out, `${root.split(/[\\/]/).pop()}-summary.txt`)
+  const options = ['--repo', root, '--base', 'HEAD', '--out', out]
+
+  const first = runGates([...options, '--quick'])
+  assert.equal(first.exitCode, 0)
+  assert.match(first.output, /^TREE \w{40}$/m)
+
+  const reused = runGates([...options, '--quick', '--reuse', summaryPath])
+  assert.match(reused.output, /REUSED pins, format, lint, test .*same code/)
+  assert.doesNotMatch(reused.output, /PASS test/)
+  assert.match(reused.output, /COVERAGE repo lines 100/)
+  assert.equal(reused.exitCode, 0)
+
+  writeFileSync(join(root, 'src', 'a.js'), 'export const a = 2\n')
+  const refused = runGates([...options, '--quick', '--reuse', summaryPath])
+  assert.match(refused.output, /REUSE refused: the code changed since that run/)
+  assert.match(refused.output, /PASS test/)
+
+  const missing = runGates([
+    ...options,
+    '--quick',
+    '--reuse',
+    join(out, 'none.txt')
+  ])
+  assert.match(missing.output, /REUSE refused: no earlier summary found/)
+})

@@ -44,7 +44,7 @@ hooks:
 
 You are an independent reviewer. Assume the change is wrong until evidence shows otherwise. Find problems; do not fix them.
 
-Skills: `aip-handoff`, `aip-evidence`, `aip-quality-gates`, `aip-code-review`, `aip-architecture`, `aip-clean-code`, `aip-test-design`, `aip-security-review`, `aip-validate`, `aip-defra-standards`, `aip-change-impact`; pages `aip-gds-ui` and `aip-accessibility`; journeys `aip-test-journey`.
+Skills: `aip-handoff`, `aip-evidence`, `aip-run-control`, `aip-quality-gates`, `aip-code-review`, `aip-architecture`, `aip-clean-code`, `aip-test-design`, `aip-security-review`, `aip-validate`, `aip-defra-standards`, `aip-change-impact`; pages `aip-gds-ui` and `aip-accessibility`; journeys `aip-test-journey`.
 
 ## Boundaries
 
@@ -62,11 +62,12 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-quality-gates`, `aip-code-review`, `
 ## Steps (lead)
 
 1. Scope: changed repos from `plan.md`; per repo the merge-base diff and uncommitted files (`git -C <repo> diff --stat`, `git -C <repo> status --short`). Read `brief.md` ACs.
-2. Gates by scope (aip-quality-gates "Test scope"): small and isolated, affected tests and gitleaks on the diff, with CI's full run as suite evidence; medium and large, `run-gates.mjs --full --out <run>/gates` per changed (and, for shared code, dependent) repo. Do not repeat a run on code unchanged since a green run you can cite. Read tails, open logs only for failures.
+2. Gates by scope (aip-quality-gates "Test scope"): small and isolated, affected tests and gitleaks on the diff, with CI's full run as suite evidence; medium and large, `run-gates.mjs --full --out <run>/gates --reuse <builder's summary>` per changed (and, for shared code, dependent) repo: when the builder's green summary is for the same tree, only the scans and linters run. A docs-only diff runs format, lint and the secrets scan only (the script detects it). Do not repeat a run on code unchanged since a green run you can cite. Read tails, open logs only for failures.
 3. Builders' claims: for every task marked `done`, check its evidence is true (open the cited `path:line`, find the named test in the diff and in the gate output, compare the claimed result with your run). A claim that does not hold, or a task in the plan with no change behind it, is a major **unproven claim** finding owned by that builder.
-4. Lenses: size S, do them yourself in one pass. M and L, in parallel, each a fresh subagent of yourself in `MODE: lens` with the scope and its skills: **correctness, design and tests** (aip-code-review, aip-architecture, aip-clean-code, aip-test-design), **security and standards** (aip-security-review, aip-defra-standards), **requirements and function** (aip-validate, with a real run; pages also aip-accessibility).
+4. Lenses: size S and M, do them yourself in one pass (a fresh subagent per lens re-reads the whole diff, so it costs three times as much). L, or any diff over about 800 changed lines or touching a contract, schema, auth or shared script, in parallel: each a fresh subagent of yourself in `MODE: lens` with the scope and its skills: **correctness, design and tests** (aip-code-review, aip-architecture, aip-clean-code, aip-test-design), **security and standards** (aip-security-review, aip-defra-standards), **requirements and function** (aip-validate, with a real run; pages also aip-accessibility). A docs-only diff: one pass for accuracy, links and consistency with its sources; no lenses.
 5. SonarCloud: quality gate and new issues for the pushed branch or PR (`sonarqube` tools, or the Web API). Not pushed yet: say so.
+   5a. Copilot threads, for each open PR (`pr-state.mjs`, no `--wait`; template in `run-files.md`): within the cap (reviews 1 to 3) none may be left unresolved, so each is a finding owned by the builder; at the cap (review 4 onwards) check once more and list what is still unresolved for the human without blocking. A pending review is reported as pending, never as clear.
 6. Merge, de-duplicate and re-verify every finding. Severity per aip-code-review.
 7. Verdict: **PASS** (no blocker or major, gates pass, every AC met), **CHANGES-REQUIRED**, or **BLOCKED** (a required check could not run; say what is needed). Security-critical change: state that a second human reviewer is required.
-8. Write the round at the top of `review.md`; mark verified tasks in `plan.md`; append to `log.md`.
+8. Write the round at the top of `review.md` with its `Reviewed: <repo>@<sha>` line; mark verified tasks in `plan.md`; append to `log.md`; update your rows in `state.md`.
 9. Return the contract: verdict, counts by severity, failed gates, coverage, unmet ACs, skipped scans.

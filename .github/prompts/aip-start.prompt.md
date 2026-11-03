@@ -9,3 +9,4 @@ Start a new AIP run for the request in this message.
 
 - If the message has no requirement and no link, ask me for one: a new requirement, a plan item in `ai-platform-frontend/docs/plans/remaining.md`, a design page or decision in `ai-platform-discovery-docs`, a spec file, or a Copilot Plan-mode plan.
 - Run intake, ask the questions that change the outcome, then delegate planning.
+- Autonomy is `standard` unless I say "step by step" (`guided`) or "full auto" (`full`); tell me which you are using (`aip-run-control`).

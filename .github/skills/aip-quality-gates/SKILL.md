@@ -22,6 +22,11 @@ node <this skill>/scripts/run-gates.mjs --repo <repo path> --full --out <run fol
 
 Coverage comes from `coverage/lcov.info` (or a root `lcov.info`) written during the run. Targets: lines and functions 90 (Defra), branches 85 (as in `ai-platform-workflows`). Totals and every changed file below target count as a failure.
 
+Two switches cut repeat work, and both fail safe (a mismatch runs everything):
+
+- **Docs-only scope (automatic).** When every changed file is Markdown, under `docs/` or the licence, the script runs format, lint and the secrets scan only (plus the build-only `test` of a repo with no unit tests, such as discovery-docs) and prints `SCOPE docs-only`. `--scope full` forces everything.
+- **`--reuse <summary>`.** Every summary carries a `TREE` fingerprint of HEAD, tracked changes and untracked files. Pass the builder's `<run>/gates/<repo>-summary.txt`: if the tree is identical and that run passed, pins, format, lint and tests are not run again (their coverage lines are carried over) and only the scans and linters of `--full` run. It prints `REUSED ...` or `REUSE refused: <reason>`.
+
 ## Reading the result
 
 ```text
@@ -37,7 +42,7 @@ RESULT FAIL (1 failed, 0 warnings, 1 skipped, 2 coverage misses)
 
 - Read the tail first; open the log only for the failing step, and only the part you need.
 - `SKIP` is not a pass. Report every skipped scan with its reason; the Reviewer marks the verdict `BLOCKED` when a required scan cannot run and the user has not waived it.
-- `WARN` steps are advisory because the repos are not yet compliant (open GHAS alerts, high-severity audit, tag-pinned Actions, Checkov soft-fail as in CI); record new ones caused by the change as findings.
+- `WARN` steps are advisory because the repos are not yet compliant (open GHAS alerts, high-severity audit, tag-pinned Actions, Checkov soft-fail as in CI); record new ones caused by the change as findings. An `npm audit` finding fixed only by a version inside the 7-day package-age window (`min-release-age=7`) is a deferred bump, not a blocker (`aip-run-control`).
 
 ## Tools
 
@@ -61,7 +66,7 @@ Test the area of change first and widen only as risk grows. A run proves somethi
 | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | Docs only, or comments                                                                                                                        | Format (and the docs site's own tests) | Same                                                                         | Same; no code suites                                                                  |
 | Small and isolated: one module, no contract, schema, config or shared helper                                                                  | Affected tests only                    | Affected tests, format and lint on the repo                                  | Affected tests, gitleaks on the diff; CI's full run on the PR is the suite evidence   |
-| Medium: several modules in a repo, a new route or page                                                                                        | Affected tests per task                | `--quick` once per touched repo                                              | `--full` once per touched repo                                                        |
+| Medium: several modules in a repo, a new route or page                                                                                        | Affected tests per task                | `--quick` once per touched repo                                              | `--full --reuse <builder summary>` once per touched repo                              |
 | Large, a rewrite, or anything shared (auth, session, `api-client.js`, config, guard, schemas, modules many roots use, reusable workflows, CI) | Affected tests and their dependants    | `--full` per touched repo, plus dependants in other repos (contract callers) | `--full` per touched and dependent repo, journey tests for affected journeys, then CI |
 
 Affected tests:

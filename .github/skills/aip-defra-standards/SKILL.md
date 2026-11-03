@@ -29,6 +29,10 @@ Source of truth: [Defra software development standards](https://github.com/DEFRA
 | Repo         | README (purpose, prerequisites, setup, run, test, branching, contributing, licence); OGL v3 licence                                                                                    | `readme_standards.md`                                        |
 | Copilot      | Agents single-role with boundaries; skills lean and linked; never weaken a test to pass                                                                                                | `guides/github_copilot.md`                                   |
 
+## The 7-day package-age rule
+
+`.npmrc` `min-release-age=7` (Defra Node standard) makes npm refuse any version published less than 7 days ago, so a freshly published malicious or broken release cannot be installed. A needed security fix inside that window fails with `ETARGET`; Dependabot waits the same. Do not bypass it and do not wait for it: record a deferred bump with its eligible time and carry on ([aip-run-control](../aip-run-control/SKILL.md) section 4).
+
 ## Where AIP diverges today (flag, do not fix silently)
 
 - Actions use tags (`@v7`, `@v1`), not SHAs. New or changed `uses:` lines pin by SHA with a tag comment; the internal `ai-platform-workflows@v1` model needs a recorded exception or migration.

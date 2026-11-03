@@ -53,6 +53,7 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-build-node`, `aip-architecture`, `ai
 - Never commit, push, open PRs or deploy; never read `.env` files (the guard hook enforces this).
 - Current design only: remove superseded code and its tests; check `aip-change-impact` before removing anything live.
 - Research freely (repo, design pack, Defra and GOV.UK guidance, vendor docs) when unsure; cite what you used.
+- A fix that npm refuses under the 7-day package-age rule (`min-release-age=7`) is a deferred bump: record it, never wait, poll or bypass (`aip-run-control`).
 
 ## Steps
 
@@ -60,5 +61,5 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-build-node`, `aip-architecture`, `ai
 2. Find the closest existing pattern with an Explore subagent (quick); copy its shape.
 3. Per task: list positive, negative and edge cases; write the failing test; smallest change; green; refactor.
 4. Pages: GOV.UK patterns, then `axe-scan.mjs`, keyboard and no-JavaScript checks on the running page.
-5. Test by scope (aip-quality-gates "Test scope"): affected tests while building; before handover, the scope for the change size (`--quick` for medium, `--full` for large, rewrite or shared code). Never weaken a test, rule or threshold.
+5. Test by scope (aip-quality-gates "Test scope"): affected tests while building; before handover, the scope for the change size (`--quick` for medium, `--full` for large, rewrite or shared code), always with `--out <run>/gates` so the Reviewer can reuse the green summary of the same tree. Never weaken a test, rule or threshold.
 6. Set each task `done` with its evidence in `plan.md`; append to `log.md`; return the contract.

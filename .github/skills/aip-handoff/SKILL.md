@@ -26,14 +26,15 @@ Every `done` claim carries evidence: a command and its result line, `path:line`,
 
 `ai-platform-agents/.copilot-tracking/runs/{yyyy-mm-dd}-{slug}/` is working state, git-ignored. The durable record is the plan record committed in each work PR and the one end-of-run docs PR (aip-plan).
 
-| File         | Written by                                | Holds                                                  |
-| ------------ | ----------------------------------------- | ------------------------------------------------------ |
-| `brief.md`   | Planner                                   | Requirement, sources, ACs, non-goals, answers, risks   |
-| `plan.md`    | Planner; builders and Reviewer set status | Tasks per repo and owner, gates, status, evidence      |
-| `log.md`     | Every agent, append only                  | One entry of at most 10 lines per stage                |
-| `review.md`  | Reviewer                                  | Verdict, gate table, findings; latest round on top     |
-| `release.md` | Releaser                                  | Branches, commits, PRs, checks, threads, deploy status |
-| `gates/`     | Builders, Reviewer                        | Full gate and scan logs                                |
+| File         | Written by                                                                   | Holds                                                           |
+| ------------ | ---------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `state.md`   | Planner creates; every stage agent updates the rows it owns before returning | One-screen snapshot: stage, PR groups, waiting, parked requests |
+| `brief.md`   | Planner                                                                      | Requirement, sources, ACs, non-goals, answers, risks            |
+| `plan.md`    | Planner; builders and Reviewer set status                                    | Tasks per repo and owner, gates, status, evidence               |
+| `log.md`     | Every agent, append only                                                     | One entry of at most 10 lines per stage                         |
+| `review.md`  | Reviewer                                                                     | Verdict, gate table, findings; latest round on top              |
+| `release.md` | Releaser                                                                     | Branches, commits, PRs, checks, threads, deploy status          |
+| `gates/`     | Builders, Reviewer                                                           | Full gate and scan logs                                         |
 
 Templates: [run-files.md](./references/run-files.md).
 
@@ -55,10 +56,12 @@ MODE: delegated
 RUN: {absolute run folder path}
 STAGE: plan | build | review | docs | release | deploy | record
 SIZE: S | M | L
+AUTONOMY: guided | standard | full
+RESUME: yes (only when continuing a cancelled stage; see aip-run-control)
 OBJECTIVE: {one sentence}
 SCOPE: {repos, task ids or finding ids}
 INPUTS: {files to read; the user's answers verbatim}
-CONSTRAINTS: {gates approved (G1/G2/G3), paths off limits, anything not to do}
+CONSTRAINTS: {gates approved (G1/G2/G3), paths off limits, PARKED: requests to log under Inbox in state.md, anything not to do}
 DONE WHEN: {measurable outcome}
 ```
 
@@ -81,6 +84,8 @@ NEXT: {recommended next stage, or the main risk}
 - `MODE: delegated` means you cannot talk to the user. When an answer would change scope, design, security or tests, return `needs-input`; never guess.
 - User-invoked (no `MODE` line): ask with the ask-questions tool, at most five questions, each with options and a recommendation.
 - Task status in `plan.md`: `todo`, `doing`, `done` (builder, with evidence), `verified` (Reviewer only), `blocked`, `superseded` (replaced by a plan revision).
+- After each task or finding id, append `checkpoint: <id> <status>, <evidence>` to `log.md` (one line), so a stage cancelled by a mid-run message resumes instead of restarting. Before returning, update your rows in `state.md` (rewrite, never append).
+- Run control (loops, waits, autonomy, cancelled subagents, orienting in a new chat): [aip-run-control](../aip-run-control/SKILL.md).
 
 ## Tools every agent should use
 
@@ -91,5 +96,5 @@ NEXT: {recommended next stage, or the main risk}
 - **GitHub search** (`githubRepo`, `githubTextSearch`, `github/*`) for proven patterns in DEFRA repositories before inventing one; cite what you used.
 - **Memory** (local to this machine, never shared or reviewed): read it at the start for gotchas and preferences, but treat every entry as a hint to verify, never as evidence. Write only verified, reusable facts with their source: `/memories/repo/` for repo commands and gotchas, `/memories/` for the user's preferences, `/memories/session/` for working notes. The run folder stays the record. Never store secrets, personal data or tenant identifiers. A fact the team needs goes into the repo's instructions by PR, then out of memory.
 - **Browser** to prove behaviour in a real run (pages, PR and CI pages); **web** for dated external sources.
-- Resume: read `brief.md`, `plan.md` and the last three `log.md` entries only.
+- Resume: read `state.md`, then the last three `log.md` entries; `brief.md` and `plan.md` only when needed.
 - No secrets, tokens, personal data or full resource IDs in any run file.
