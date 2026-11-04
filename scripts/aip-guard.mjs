@@ -253,10 +253,14 @@ export function writeTargets(command) {
     )
   )) {
     const args = m[1].match(new RegExp(token, 'g')) ?? []
-    const operands = args.map(unquote).filter((a) => !a.startsWith('-'))
-    if (/^(mv|move-item)\b/i.test(m[0])) targets.push(...operands.slice(0, -1))
-    const last = operands.at(-1)
-    if (last) targets.push(last)
+    // A stray quote left by a substitution (`$(...)"`) is not an operand.
+    const operands = args.map(unquote).filter((a) => a && !a.startsWith('-'))
+    // cp and install write only the destination; every other command here writes each operand.
+    if (/^(cp|copy-item|install)\b/i.test(m[0])) {
+      if (operands.length) targets.push(operands.at(-1))
+    } else {
+      targets.push(...operands)
+    }
   }
   for (const m of command.matchAll(
     new RegExp(
@@ -269,8 +273,115 @@ export function writeTargets(command) {
   return targets
 }
 
+// Message text (`-m "a -> b"`, `--body "rm x"`) is prose, not a redirection or file operand.
+// It applies only to the own arguments of a recognised git commit or gh pr segment.
+const MESSAGE_CMD = new RegExp(
+  String.raw`^[\s(]*(?:\w+=\S*\s+)*(?:${GIT}commit|gh\s+pr\s+(?:create|edit|comment))\b`
+)
+// Long options need a separator; short ones may be attached (`-m"text"`).
+const MESSAGE_OPTION =
+  /\s(?:--(?:message|title|body)(?:\s+|=)|-[mtb](?:\s+|=)?)$/
+const SINGLE_QUOTED = /'[^']*'/y
+const DOUBLE_QUOTED = /"(?:[^"\\]|\\.)*"/y
+// A double-quoted value that runs a command must stay visible to the write check.
+const SUBSTITUTION = /\$\(|`/
+
+// `2>&1`, `>&2` and `&>` are redirections, not command separators.
+function isBoundary(command, i) {
+  const c = command[i]
+  if (c === '&')
+    return !/[<>]/.test(command[i - 1] ?? '') && command[i + 1] !== '>'
+  return c === ';' || c === '|' || c === '\n'
+}
+
+// A `#` at the start of a word, outside quotes, begins a comment.
+const isComment = (command, i) =>
+  command[i] === '#' && (i === 0 || /[\s;&|(]/.test(command[i - 1]))
+
+// `<<` and `<<-` open a heredoc; `<<<` is a here-string.
+const isHeredoc = (command, i) =>
+  command[i] === '<' &&
+  command[i + 1] === '<' &&
+  command[i + 2] !== '<' &&
+  command[i - 1] !== '<'
+
+// The quoted value starting at `index` when it is a message of the command beginning at `start`.
+function messageValue(command, start, index) {
+  const head = command.slice(start, index)
+  if (!MESSAGE_CMD.test(head) || !MESSAGE_OPTION.test(head)) return null
+  const pattern = command[index] === "'" ? SINGLE_QUOTED : DOUBLE_QUOTED
+  pattern.lastIndex = index
+  const value = pattern.exec(command)?.[0]
+  if (!value || (command[index] === '"' && SUBSTITUTION.test(value)))
+    return null
+  return value
+}
+
+/**
+ * Blanks message text in git commit and gh pr arguments, so prose is not read as a write target.
+ * One quote-aware scan treats `;`, `&&`, `|`, newlines and parentheses as command boundaries at any
+ * depth (including `$(...)` and backticks), and blanks only values that belong to the arguments of
+ * the command that starts the current segment.
+ * @param {string} command Raw command text, before any path normalisation.
+ * @returns {string}
+ */
+function stripMessages(command) {
+  let result = ''
+  let copied = 0
+  // Each frame is a command context (root, `(`, backtick) or a quote; `start` is where its current command began.
+  const stack = [{ type: 'root', start: 0 }]
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i]
+    const top = stack.at(-1)
+    const quoted = top.type === "'" || top.type === '"'
+    if (top.type === "'") {
+      if (c === "'") stack.pop()
+    } else if (c === '\\') {
+      // Bash escapes a quote with a backslash; PowerShell does not. Fail closed: stop blanking here.
+      if (command[i + 1] === '"' || (!quoted && command[i + 1] === "'")) break
+      i++
+    } else if (!quoted && isComment(command, i)) {
+      // A comment runs to the end of the line; a trailing backslash does not join the next line.
+      const end = command.indexOf('\n', i)
+      i = end === -1 ? command.length : end - 1
+    } else if (!quoted && isHeredoc(command, i)) {
+      // A heredoc body is data or commands, depending on its delimiter; never blank it.
+      break
+    } else if (top.type === '"' && c === '"') {
+      stack.pop()
+    } else if (top.type === '`' && c === '`') {
+      stack.pop()
+    } else if (quoted && c !== '$' && c !== '`') {
+      continue
+    } else if (c === "'" || c === '"') {
+      const value = quoted ? null : messageValue(command, top.start, i)
+      if (value?.includes('\\"')) break
+      if (value) {
+        result += `${command.slice(copied, i)}${c}${c}`
+        i += value.length - 1
+        copied = i + 1
+      } else {
+        stack.push({ type: c })
+      }
+    } else if (c === '`') {
+      stack.push({ type: c, start: i + 1 })
+    } else if (c === '$' && command[i + 1] === '(') {
+      i++
+      stack.push({ type: '(', start: i + 1 })
+    } else if (c === '(') {
+      stack.push({ type: '(', start: i + 1 })
+    } else if (c === ')' && top.type === '(') {
+      stack.pop()
+    } else if (!quoted && isBoundary(command, i)) {
+      top.start = i + 1
+    }
+  }
+  return result + command.slice(copied)
+}
+
 function checkWrites(command, role, cwd) {
-  for (const raw of writeTargets(command)) {
+  const text = stripMessages(command).replace(/\\/g, '/')
+  for (const raw of writeTargets(text)) {
     const path = normalisePath(raw, cwd)
     if (SAFE_WRITE_TARGET.test(path)) continue
     const result = checkPath(raw, 'edit', role, cwd)
@@ -287,7 +398,7 @@ function checkCommand(command, role, cwd) {
   if (STATE_PATH.test(text.toLowerCase()) && STATE_WRITE.test(text))
     return { decision: 'deny', reason: STATE_REASON }
   if (mentionsSecretEnv(text)) return { decision: 'deny', reason: ENV_REASON }
-  return checkWrites(text, role, cwd)
+  return checkWrites(command, role, cwd)
 }
 
 function checkPath(raw, kind, role, cwd) {
