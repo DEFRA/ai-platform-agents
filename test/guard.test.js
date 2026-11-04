@@ -543,6 +543,57 @@ test('does not read text inside commit and PR messages as file writes', () => {
   )
 })
 
+const notDenied = (command, roles = ['releaser', 'reviewer']) => {
+  for (const role of roles) {
+    const { decision } = decide(terminal(command), role)
+    assert.notEqual(decision, 'deny', `${role}: ${command}`)
+  }
+}
+const denied = (command, role = 'reviewer') =>
+  assert.equal(decide(terminal(command), role).decision, 'deny', command)
+
+test('still checks command substitutions inside quoted messages', () => {
+  const target = '/r/ai-platform-backend-api/src/a.js'
+  denied(`git commit -m "$(printf x > ${target})"`)
+  denied(`git commit -m "ok" -m "\`printf x > ${target}\`"`)
+  denied(`gh pr create --body "$(printf x > ${target})"`)
+  notDenied('git commit -m "docs: a > b" -m "uses cost $5 -> $6"')
+})
+
+test('strips messages only from the recognised commit or PR command', () => {
+  const target = '/r/ai-platform-backend-api/src/a.js'
+  denied(`git commit -m "ok" && touch -m "${target}"`)
+  denied(`git commit -m "ok"; cp -t "${target}"`)
+  denied(`git commit -m "ok" | tee -a "${target}"`)
+  notDenied('git commit -m "docs: a > b" && git status 2>&1')
+  notDenied('git add . && git commit -m "docs: a -> b"')
+  notDenied('GIT_AUTHOR_NAME=x git commit -m "docs: a -> b"')
+  notDenied('git commit 2>&1 -m "docs: a -> b"')
+  notDenied('(git commit -m "docs: a -> b") && echo "$(date)"')
+  notDenied('git commit -m "a;b && c > d" -m "x"')
+})
+
+test('recognises git prefixes with quoted operands and git.exe', () => {
+  notDenied(
+    'git -C "/r/work space/ai-platform-frontend" commit -m "docs: a > b"'
+  )
+  notDenied("git -c 'a b=c' commit -m 'docs: a -> b'")
+  notDenied('git.exe commit -m "docs: a -> b"')
+})
+
+test('accepts attached short message values', () => {
+  notDenied('git commit -m"docs: a -> b"')
+  notDenied("git commit -m'docs: a -> b'")
+  notDenied('gh pr create -t"docs: a -> b" -b"mv x > y"')
+  denied('git commit -m"x" > /r/ai-platform-backend-api/src/a.js')
+})
+
+test('parses quoting before backslashes become path separators', () => {
+  notDenied(String.raw`git commit -m "docs: \"a > b\""`)
+  notDenied(String.raw`git commit -m 'docs: a > b' -m "say \"x -> y\""`)
+  denied(String.raw`git commit -m "ok" > C:\r\ai-platform-backend-api\src\a.js`)
+})
+
 test('treats MCP push_files as an edit restricted by role', () => {
   const push = {
     tool_name: 'mcp_github_push_files',

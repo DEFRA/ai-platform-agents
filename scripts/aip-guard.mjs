@@ -270,19 +270,90 @@ export function writeTargets(command) {
 }
 
 // Message text (`-m "a -> b"`, `--body "rm x"`) is prose, not a redirection or file operand.
-const MESSAGE_CMD =
-  /\b(?:git\s+(?:-[cC]\s+\S+\s+)*commit|gh\s+pr\s+(?:create|edit|comment))\b/
+// It applies only to the own arguments of a recognised git commit or gh pr segment.
+const MESSAGE_CMD = new RegExp(
+  String.raw`^[\s(]*(?:\w+=\S*\s+)*(?:${GIT}commit|gh\s+pr\s+(?:create|edit|comment))\b`
+)
+// Long options need a separator; short ones may be attached (`-m"text"`).
 const MESSAGE_ARG =
-  /(\s(?:-m|-t|-b|--message|--title|--body)(?:\s+|=))("(?:[^"\\]|\\.)*"|'[^']*')/g
+  /(\s(?:--(?:message|title|body)(?:\s+|=)|-[mtb](?:\s+|=)?))("(?:[^"\\]|\\.)*"|'[^']*')/g
+// A value that runs a command must stay visible to the write check.
+const SUBSTITUTION = /\$\(|`/
 
+/**
+ * Finds where each top-level shell segment starts and ends, honouring quotes, escapes and
+ * `$(...)` or backtick substitutions, so `&&`, `;` and `|` inside a quoted value do not split.
+ * @param {string} command Raw command text, before any path normalisation.
+ * @returns {Array<[number, number]>}
+ */
+function segmentRanges(command) {
+  const ranges = []
+  const stack = []
+  let start = 0
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i]
+    const top = stack.at(-1)
+    if (top === "'") {
+      if (c === "'") stack.pop()
+    } else if (c === '\\') {
+      i++
+    } else if (top === '"' && c === '"') {
+      stack.pop()
+    } else if (top === '`' && c === '`') {
+      stack.pop()
+    } else if (top === '"' && c !== '$' && c !== '`') {
+      continue
+    } else if (c === "'" || c === '"' || c === '`') {
+      stack.push(c)
+    } else if (c === '$' && command[i + 1] === '(') {
+      stack.push('(')
+      i++
+    } else if (c === '(') {
+      stack.push('(')
+    } else if (c === ')' && top === '(') {
+      stack.pop()
+    } else if (!stack.length && isBoundary(command, i)) {
+      ranges.push([start, i])
+      start = i + 1
+    }
+  }
+  ranges.push([start, command.length])
+  return ranges
+}
+
+// `2>&1`, `>&2` and `&>` are redirections, not command separators.
+function isBoundary(command, i) {
+  const c = command[i]
+  if (c === '&')
+    return !/[<>]/.test(command[i - 1] ?? '') && command[i + 1] !== '>'
+  return c === ';' || c === '|' || c === '\n'
+}
+
+function stripSegment(segment) {
+  if (!MESSAGE_CMD.test(segment)) return segment
+  return segment.replace(MESSAGE_ARG, (whole, option, value) =>
+    SUBSTITUTION.test(value) ? whole : `${option}""`
+  )
+}
+
+/**
+ * Blanks message text in git commit and gh pr arguments, so prose is not read as a write target.
+ * @param {string} command Raw command text, before any path normalisation.
+ * @returns {string}
+ */
 function stripMessages(command) {
-  return MESSAGE_CMD.test(command)
-    ? command.replace(MESSAGE_ARG, '$1""')
-    : command
+  let result = ''
+  let last = 0
+  for (const [from, to] of segmentRanges(command)) {
+    result += command.slice(last, from) + stripSegment(command.slice(from, to))
+    last = to
+  }
+  return result + command.slice(last)
 }
 
 function checkWrites(command, role, cwd) {
-  for (const raw of writeTargets(stripMessages(command))) {
+  const text = stripMessages(command).replace(/\\/g, '/')
+  for (const raw of writeTargets(text)) {
     const path = normalisePath(raw, cwd)
     if (SAFE_WRITE_TARGET.test(path)) continue
     const result = checkPath(raw, 'edit', role, cwd)
@@ -299,7 +370,7 @@ function checkCommand(command, role, cwd) {
   if (STATE_PATH.test(text.toLowerCase()) && STATE_WRITE.test(text))
     return { decision: 'deny', reason: STATE_REASON }
   if (mentionsSecretEnv(text)) return { decision: 'deny', reason: ENV_REASON }
-  return checkWrites(text, role, cwd)
+  return checkWrites(command, role, cwd)
 }
 
 function checkPath(raw, kind, role, cwd) {
