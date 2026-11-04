@@ -69,6 +69,7 @@ Run state lives in `.copilot-tracking/runs/{date}-{slug}/` (git-ignored). The gu
 
 - `npm test`: unit and integration tests with coverage thresholds (lines and functions 90, branches 85).
 - `npm run validate`: frontmatter, cross-references, skill names, links and sizes.
+- `node scripts/check-message-text.mjs --file <path>`: lints commit or PR text for the [plain-text rule](.github/skills/aip-pull-request/SKILL.md#plain-text-messages).
 - `npm run format:check`; `npm run format` to fix.
 
 ## Branching and contributing
