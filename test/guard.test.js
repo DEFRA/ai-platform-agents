@@ -613,9 +613,74 @@ test('accepts attached short message values', () => {
 })
 
 test('parses quoting before backslashes become path separators', () => {
-  notDenied(String.raw`git commit -m "docs: \"a > b\""`)
-  notDenied(String.raw`git commit -m 'docs: a > b' -m "say \"x -> y\""`)
+  notDenied(String.raw`git commit -m 'docs: a > b' -m "say \"hi\""`)
+  notDenied(
+    String.raw`git commit -m "ok" -m 'a > b' > C:\r\ai-platform-agents\.copilot-tracking\runs\x\log.md`
+  )
   denied(String.raw`git commit -m "ok" > C:\r\ai-platform-backend-api\src\a.js`)
+})
+
+const BACKEND = '/r/ai-platform-backend-api/src/a.js'
+
+test('keeps a double-quoted value visible when a backslash-escaped quote makes the quoting ambiguous', () => {
+  // PowerShell ends the value at the first inner quote; bash does not. Fail closed.
+  denied(
+    String.raw`git commit -m "ok\"; Set-Content -Path ${BACKEND} -Value x; #"`
+  )
+  denied(String.raw`git commit -m "docs: \"a > b\""`)
+  denied(String.raw`git commit -m 'a > b' -m "say \"x -> y\""`)
+  denied(`git commit -m "ok" -m "unterminated > ${BACKEND}`)
+  notDenied('git commit -m "docs: a << b"')
+})
+
+test('keeps heredoc bodies visible to the write check', () => {
+  denied(`cat <<EOF\ngit commit -m '$(printf x > ${BACKEND})'\nEOF`)
+  denied(`cat <<-EOF\ngit commit -m '$(printf x > ${BACKEND})'\nEOF`)
+  denied(`cat <<'EOF'\ngit commit -m 'x'; touch -m "${BACKEND}"\nEOF`)
+  denied(`git commit -F - <<EOF > ${BACKEND}\ndocs: a\nEOF`)
+  notDenied('git commit -m "docs: a -> b" <<< "x"')
+})
+
+test('recognises comments before processing escapes', () => {
+  denied(`git commit -m "ok" # note \\\ntouch -m "${BACKEND}"`)
+  denied(`echo hi # note \\\ntouch -m "${BACKEND}"`)
+  denied(`git commit -m "ok" ;# note \\\ntouch -m "${BACKEND}"`)
+  notDenied('git commit -m "docs: a -> b" # don\'t')
+  notDenied('git commit -m "docs: a -> b # c" -m "x"')
+  notDenied('git commit -m "docs: a -> b" -m ab#c')
+})
+
+test('checks every operand of touch, rm and mkdir, and ignores stray quote tokens', () => {
+  denied(`touch ${BACKEND} $(git commit -m "ok")`)
+  denied(`rm ${BACKEND} /tmp/x`)
+  denied(`mkdir ${BACKEND} /tmp/x`)
+  denied(`echo "$(touch -m "${BACKEND}")"`)
+  denied(`echo "$(rm "${BACKEND}")"`)
+  notDenied('touch /tmp/a /tmp/b')
+})
+
+// Adversarial commands from every review round; each must deny for the reviewer role.
+const ADVERSARIAL = [
+  `git commit -m "$(printf x > ${BACKEND})"`,
+  `git commit -m "ok" -m "\`printf x > ${BACKEND}\`"`,
+  `git commit -m "ok" && touch -m "${BACKEND}"`,
+  `git commit -m "ok" | tee -a "${BACKEND}"`,
+  `(git commit -m "ok"; touch -m "${BACKEND}")`,
+  `echo $(git commit -m "ok"; touch -m "${BACKEND}")`,
+  `git commit -m "ok" $(touch -m "${BACKEND}")`,
+  `git commit -m "docs: $(date) -> t" > ${BACKEND}`,
+  `git commit -m"x" > ${BACKEND}`,
+  String.raw`git commit -m "ok" > C:\r\ai-platform-backend-api\src\a.js`,
+  String.raw`git commit -m "ok\"; Set-Content -Path ${BACKEND} -Value x; #"`,
+  String.raw`git commit -m "ok\"; touch -m ${BACKEND}; #"`,
+  `cat <<EOF\ngit commit -m '$(printf x > ${BACKEND})'\nEOF`,
+  `git commit -m "ok" # c \\\ntouch -m "${BACKEND}"`,
+  `touch ${BACKEND} $(git commit -m "ok")`,
+  `echo "$(touch -m "${BACKEND}")"`
+]
+
+test('denies every adversarial command in the table', () => {
+  for (const command of ADVERSARIAL) denied(command)
 })
 
 test('treats MCP push_files as an edit restricted by role', () => {

@@ -253,10 +253,14 @@ export function writeTargets(command) {
     )
   )) {
     const args = m[1].match(new RegExp(token, 'g')) ?? []
-    const operands = args.map(unquote).filter((a) => !a.startsWith('-'))
-    if (/^(mv|move-item)\b/i.test(m[0])) targets.push(...operands.slice(0, -1))
-    const last = operands.at(-1)
-    if (last) targets.push(last)
+    // A stray quote left by a substitution (`$(...)"`) is not an operand.
+    const operands = args.map(unquote).filter((a) => a && !a.startsWith('-'))
+    // cp and install write only the destination; every other command here writes each operand.
+    if (/^(cp|copy-item|install)\b/i.test(m[0])) {
+      if (operands.length) targets.push(operands.at(-1))
+    } else {
+      targets.push(...operands)
+    }
   }
   for (const m of command.matchAll(
     new RegExp(
@@ -290,6 +294,17 @@ function isBoundary(command, i) {
   return c === ';' || c === '|' || c === '\n'
 }
 
+// A `#` at the start of a word, outside quotes, begins a comment.
+const isComment = (command, i) =>
+  command[i] === '#' && (i === 0 || /[\s;&|(]/.test(command[i - 1]))
+
+// `<<` and `<<-` open a heredoc; `<<<` is a here-string.
+const isHeredoc = (command, i) =>
+  command[i] === '<' &&
+  command[i + 1] === '<' &&
+  command[i + 2] !== '<' &&
+  command[i - 1] !== '<'
+
 // The quoted value starting at `index` when it is a message of the command beginning at `start`.
 function messageValue(command, start, index) {
   const head = command.slice(start, index)
@@ -322,7 +337,16 @@ function stripMessages(command) {
     if (top.type === "'") {
       if (c === "'") stack.pop()
     } else if (c === '\\') {
+      // Bash escapes a quote with a backslash; PowerShell does not. Fail closed: stop blanking here.
+      if (command[i + 1] === '"' || (!quoted && command[i + 1] === "'")) break
       i++
+    } else if (!quoted && isComment(command, i)) {
+      // A comment runs to the end of the line; a trailing backslash does not join the next line.
+      const end = command.indexOf('\n', i)
+      i = end === -1 ? command.length : end - 1
+    } else if (!quoted && isHeredoc(command, i)) {
+      // A heredoc body is data or commands, depending on its delimiter; never blank it.
+      break
     } else if (top.type === '"' && c === '"') {
       stack.pop()
     } else if (top.type === '`' && c === '`') {
@@ -331,6 +355,7 @@ function stripMessages(command) {
       continue
     } else if (c === "'" || c === '"') {
       const value = quoted ? null : messageValue(command, top.start, i)
+      if (value?.includes('\\"')) break
       if (value) {
         result += `${command.slice(copied, i)}${c}${c}`
         i += value.length - 1
