@@ -16,7 +16,7 @@ Each repo's `.github/instructions/pull-requests.instructions.md` (or the PR sect
 
 ## Commits
 
-One purpose per commit. The repos use conventional prefixes because release-please reads them; Defra's [commit rules](https://github.com/DEFRA/software-development-standards/blob/main/docs/processes/pull_requests.md) apply to the rest: `type: imperative summary` (`feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`; `feat!:` for breaking), subject about 50 characters, no full stop, and a body saying what and why. Add the trailer:
+One purpose per commit. The repos use conventional prefixes because release-please reads them; Defra's [commit rules](https://github.com/DEFRA/software-development-standards/blob/main/docs/processes/pull_requests.md) apply to the rest: `type: imperative summary` (`feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`; `feat!:` for breaking), subject about 50 characters (72 at most), no full stop, and a body saying what and why. Add the trailer:
 
 ```text
 Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
@@ -24,9 +24,23 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 
 Stage explicit paths (`git add <files>`), never `git add -A` across unknown work.
 
+## Plain-text messages
+
+Write commit subjects and bodies, PR titles and bodies, and review replies in plain British English that a shell guard can never misread:
+
+- No `>`, `->` or `=>`: write "to", "becomes" or "from X to Y".
+- No backticks, dollar signs, `$(`, backslashes, embedded double quotes (use single words or rephrase), pipes, semicolons or ampersands.
+- No bare `rm`, `cp`, `mv` or `tee` (write remove, copy or move), and no PowerShell cmdlet names such as `Set-Content`.
+- Code identifiers and paths appear as plain words, never in a redirect-like form.
+- The subject is 72 characters or fewer.
+
+With such text, use plain inline `git commit -m`, `gh pr create --title` and `--body`. A multi-line body may use repeated `-m` or `--body-file` for convenience; writing text to a file first is no longer required. The one exception is the `Co-authored-by` trailer above: its angle brackets are safe inline only once the guard fix for quoted messages is merged, so on an older guard add the trailer through `git commit -F <file>`.
+
+To lint text already in a file or on standard input (never pass text with forbidden characters as an argument, the guard reads that command too): `node <ai-platform-agents>/scripts/check-message-text.mjs --file <path>`. It exits 1 and names each problem by line.
+
 ## Pull request
 
-1. Push the branch (G2), then open the PR as a draft while checks run: `gh pr create -R DEFRA/<repo> --draft --title "<type>: ..." --body-file <run>/pr-<repo>.md`.
+1. Push the branch (G2), then open the PR as a draft while checks run: `gh pr create -R DEFRA/<repo> --draft --title "<type>: ..." --body "<plain text>"` (or `--body-file <run>/pr-<repo>.md` for a long body).
 2. Body: what changed, why (link the plan item and ACs), evidence (gate RESULT and COVERAGE lines, scans, accessibility results), the Impact line (`aip-change-impact`), linked PRs in other repos and their merge order. For infra and workflows, what a plan would show and which callers it reaches.
 3. Mark ready when checks pass: `gh pr ready <n>`.
 4. Request Copilot review (always, see the loop below): `gh pr edit <n> -R DEFRA/<repo> --add-reviewer "@copilot"`.
