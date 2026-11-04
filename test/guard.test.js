@@ -573,6 +573,30 @@ test('strips messages only from the recognised commit or PR command', () => {
   notDenied('git commit -m "a;b && c > d" -m "x"')
 })
 
+test('keeps command boundaries inside parenthesised groups', () => {
+  const target = '/r/ai-platform-backend-api/src/a.js'
+  denied(`(git commit -m "ok"; touch -m "${target}")`)
+  denied(`(git commit -m "ok" && cp -t "${target}")`)
+  denied(`echo $(git commit -m "ok"; touch -m "${target}")`)
+  notDenied('(git commit -m "docs: a -> b"; git status 2>&1)')
+})
+
+test('blanks messages only in the command own arguments, not in substitutions', () => {
+  const target = '/r/ai-platform-backend-api/src/a.js'
+  denied(`git commit -m "ok" $(touch -m "${target}")`)
+  denied(`git commit -m "ok" \`touch -m "${target}"\``)
+  denied(`gh pr create --title "ok" --body "x" $(touch -m "${target}")`)
+  notDenied('git commit -m "docs: a -> b" $(git rev-parse HEAD)')
+})
+
+test('treats substitution markers in single quotes as literal text', () => {
+  notDenied("git commit -m 'docs: $(date) -> timestamp'")
+  notDenied("git commit -m 'docs: `date` -> timestamp'")
+  notDenied("gh pr create --body 'run $(date) > out'")
+  denied('git commit -m "docs: $(date) -> timestamp"')
+  denied('git commit -m "docs: `date` -> timestamp"')
+})
+
 test('recognises git prefixes with quoted operands and git.exe', () => {
   notDenied(
     'git -C "/r/work space/ai-platform-frontend" commit -m "docs: a > b"'

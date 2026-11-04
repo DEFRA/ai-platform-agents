@@ -275,51 +275,12 @@ const MESSAGE_CMD = new RegExp(
   String.raw`^[\s(]*(?:\w+=\S*\s+)*(?:${GIT}commit|gh\s+pr\s+(?:create|edit|comment))\b`
 )
 // Long options need a separator; short ones may be attached (`-m"text"`).
-const MESSAGE_ARG =
-  /(\s(?:--(?:message|title|body)(?:\s+|=)|-[mtb](?:\s+|=)?))("(?:[^"\\]|\\.)*"|'[^']*')/g
-// A value that runs a command must stay visible to the write check.
+const MESSAGE_OPTION =
+  /\s(?:--(?:message|title|body)(?:\s+|=)|-[mtb](?:\s+|=)?)$/
+const SINGLE_QUOTED = /'[^']*'/y
+const DOUBLE_QUOTED = /"(?:[^"\\]|\\.)*"/y
+// A double-quoted value that runs a command must stay visible to the write check.
 const SUBSTITUTION = /\$\(|`/
-
-/**
- * Finds where each top-level shell segment starts and ends, honouring quotes, escapes and
- * `$(...)` or backtick substitutions, so `&&`, `;` and `|` inside a quoted value do not split.
- * @param {string} command Raw command text, before any path normalisation.
- * @returns {Array<[number, number]>}
- */
-function segmentRanges(command) {
-  const ranges = []
-  const stack = []
-  let start = 0
-  for (let i = 0; i < command.length; i++) {
-    const c = command[i]
-    const top = stack.at(-1)
-    if (top === "'") {
-      if (c === "'") stack.pop()
-    } else if (c === '\\') {
-      i++
-    } else if (top === '"' && c === '"') {
-      stack.pop()
-    } else if (top === '`' && c === '`') {
-      stack.pop()
-    } else if (top === '"' && c !== '$' && c !== '`') {
-      continue
-    } else if (c === "'" || c === '"' || c === '`') {
-      stack.push(c)
-    } else if (c === '$' && command[i + 1] === '(') {
-      stack.push('(')
-      i++
-    } else if (c === '(') {
-      stack.push('(')
-    } else if (c === ')' && top === '(') {
-      stack.pop()
-    } else if (!stack.length && isBoundary(command, i)) {
-      ranges.push([start, i])
-      start = i + 1
-    }
-  }
-  ranges.push([start, command.length])
-  return ranges
-}
 
 // `2>&1`, `>&2` and `&>` are redirections, not command separators.
 function isBoundary(command, i) {
@@ -329,26 +290,68 @@ function isBoundary(command, i) {
   return c === ';' || c === '|' || c === '\n'
 }
 
-function stripSegment(segment) {
-  if (!MESSAGE_CMD.test(segment)) return segment
-  return segment.replace(MESSAGE_ARG, (whole, option, value) =>
-    SUBSTITUTION.test(value) ? whole : `${option}""`
-  )
+// The quoted value starting at `index` when it is a message of the command beginning at `start`.
+function messageValue(command, start, index) {
+  const head = command.slice(start, index)
+  if (!MESSAGE_CMD.test(head) || !MESSAGE_OPTION.test(head)) return null
+  const pattern = command[index] === "'" ? SINGLE_QUOTED : DOUBLE_QUOTED
+  pattern.lastIndex = index
+  const value = pattern.exec(command)?.[0]
+  if (!value || (command[index] === '"' && SUBSTITUTION.test(value)))
+    return null
+  return value
 }
 
 /**
  * Blanks message text in git commit and gh pr arguments, so prose is not read as a write target.
+ * One quote-aware scan treats `;`, `&&`, `|`, newlines and parentheses as command boundaries at any
+ * depth (including `$(...)` and backticks), and blanks only values that belong to the arguments of
+ * the command that starts the current segment.
  * @param {string} command Raw command text, before any path normalisation.
  * @returns {string}
  */
 function stripMessages(command) {
   let result = ''
-  let last = 0
-  for (const [from, to] of segmentRanges(command)) {
-    result += command.slice(last, from) + stripSegment(command.slice(from, to))
-    last = to
+  let copied = 0
+  // Each frame is a command context (root, `(`, backtick) or a quote; `start` is where its current command began.
+  const stack = [{ type: 'root', start: 0 }]
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i]
+    const top = stack.at(-1)
+    const quoted = top.type === "'" || top.type === '"'
+    if (top.type === "'") {
+      if (c === "'") stack.pop()
+    } else if (c === '\\') {
+      i++
+    } else if (top.type === '"' && c === '"') {
+      stack.pop()
+    } else if (top.type === '`' && c === '`') {
+      stack.pop()
+    } else if (quoted && c !== '$' && c !== '`') {
+      continue
+    } else if (c === "'" || c === '"') {
+      const value = quoted ? null : messageValue(command, top.start, i)
+      if (value) {
+        result += `${command.slice(copied, i)}${c}${c}`
+        i += value.length - 1
+        copied = i + 1
+      } else {
+        stack.push({ type: c })
+      }
+    } else if (c === '`') {
+      stack.push({ type: c, start: i + 1 })
+    } else if (c === '$' && command[i + 1] === '(') {
+      i++
+      stack.push({ type: '(', start: i + 1 })
+    } else if (c === '(') {
+      stack.push({ type: '(', start: i + 1 })
+    } else if (c === ')' && top.type === '(') {
+      stack.pop()
+    } else if (!quoted && isBoundary(command, i)) {
+      top.start = i + 1
+    }
   }
-  return result + command.slice(last)
+  return result + command.slice(copied)
 }
 
 function checkWrites(command, role, cwd) {
