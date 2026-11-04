@@ -523,6 +523,26 @@ test('applies role edit boundaries to terminal writes', () => {
   )
 })
 
+test('does not read text inside commit and PR messages as file writes', () => {
+  const messages = [
+    'git -C /r/ai-platform-discovery-docs commit -m "docs: token -> check"',
+    'git commit -m "docs: a > b" -m "rm stale files"',
+    "git commit --message='feat: x >= y'",
+    'git commit -m "docs: tee out" -m "cp a b"',
+    'gh pr create --title "docs: a -> b" --body "mv x > y"'
+  ]
+  for (const command of messages) {
+    for (const role of ['releaser', 'reviewer', 'orchestrator']) {
+      const { decision } = decide(terminal(command), role)
+      assert.notEqual(decision, 'deny', `${role}: ${command}`)
+    }
+  }
+  assert.equal(
+    decide(terminal('git commit -m "x" > /r/src/a.js'), 'releaser').decision,
+    'deny'
+  )
+})
+
 test('treats MCP push_files as an edit restricted by role', () => {
   const push = {
     tool_name: 'mcp_github_push_files',

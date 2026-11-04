@@ -269,8 +269,20 @@ export function writeTargets(command) {
   return targets
 }
 
+// Message text (`-m "a -> b"`, `--body "rm x"`) is prose, not a redirection or file operand.
+const MESSAGE_CMD =
+  /\b(?:git\s+(?:-[cC]\s+\S+\s+)*commit|gh\s+pr\s+(?:create|edit|comment))\b/
+const MESSAGE_ARG =
+  /(\s(?:-m|-t|-b|--message|--title|--body)(?:\s+|=))("(?:[^"\\]|\\.)*"|'[^']*')/g
+
+function stripMessages(command) {
+  return MESSAGE_CMD.test(command)
+    ? command.replace(MESSAGE_ARG, '$1""')
+    : command
+}
+
 function checkWrites(command, role, cwd) {
-  for (const raw of writeTargets(command)) {
+  for (const raw of writeTargets(stripMessages(command))) {
     const path = normalisePath(raw, cwd)
     if (SAFE_WRITE_TARGET.test(path)) continue
     const result = checkPath(raw, 'edit', role, cwd)
