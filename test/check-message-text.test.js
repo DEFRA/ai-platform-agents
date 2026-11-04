@@ -63,6 +63,70 @@ test('flags the words the older guard reads as file writes', () => {
   assert.deepEqual(checkMessageText('confirm the term and format'), [])
 })
 
+test('flags every write command the guard recognises', () => {
+  const words = [
+    'install',
+    'touch',
+    'mkdir',
+    'Clear-Content',
+    'sed -i',
+    'sed -n -i.bak',
+    'Add-Content',
+    'New-Item',
+    'Copy-Item',
+    'Move-Item',
+    'Remove-Item'
+  ]
+  for (const word of words) {
+    assert.match(
+      checkMessageText(`tidy ${word} wording`).join('\n'),
+      /forbidden word/,
+      word
+    )
+  }
+  assert.deepEqual(checkMessageText('installation of the sediment tool'), [])
+  assert.deepEqual(checkMessageText('use sed for the edit'), [])
+})
+
+test('applies the subject limit only to commit messages and titles', () => {
+  const long = 'a'.repeat(100)
+  const body = `${long}\n\nSecond paragraph.`
+  assert.deepEqual(checkMessageText(body, { kind: 'body' }), [])
+  assert.match(
+    checkMessageText(body, { kind: 'commit' }).join('\n'),
+    /subject is 100 characters/
+  )
+  assert.match(
+    checkMessageText(long, { kind: 'title' }).join('\n'),
+    /subject is 100 characters/
+  )
+  assert.match(checkMessageText(long).join('\n'), /subject is 100 characters/)
+  assert.match(
+    checkMessageText('a -> b', { kind: 'body' }).join('\n'),
+    /forbidden ->/
+  )
+  assert.throws(() => checkMessageText('x', { kind: 'other' }), /kind/)
+})
+
+test('checks the rest of a trailer line and exempts only its angle brackets', () => {
+  const trailers = [
+    'Co-authored-by: Copilot; touch x <a@b.c>',
+    'Co-authored-by: Copilot `id` <a@b.c>',
+    'Co-authored-by: Copilot <a@b.c;x>',
+    'Co-authored-by: Copilot <a$b@b.c>',
+    'Co-authored-by: Copilot <a@b.c> extra',
+    'Co-authored-by: Copilot <a@b.c> <d@e.f>'
+  ]
+  for (const trailer of trailers) {
+    assert.notDeepEqual(
+      checkMessageText(`docs: tidy\n\n${trailer}`),
+      [],
+      trailer
+    )
+  }
+  assert.deepEqual(checkMessageText(`docs: tidy\n\n${TRAILER}`), [])
+})
+
 test('reports the line number and a subject over 72 characters', () => {
   assert.match(
     checkMessageText(`ok\n\nsecond; line`).join('\n'),
@@ -111,6 +175,26 @@ test('the CLI checks a file and standard input', () => {
   })
   assert.equal(piped.status, 1)
   assert.match(piped.stderr, /forbidden pipe/)
+
+  const longBody = join(dir, 'body.txt')
+  writeFileSync(longBody, `${'a'.repeat(100)}\n\nMore text.\n`)
+  const asCommit = spawnSync(process.execPath, [script, '--file', longBody], {
+    encoding: 'utf8'
+  })
+  assert.equal(asCommit.status, 1)
+  const asBody = spawnSync(
+    process.execPath,
+    [script, '--kind', 'body', '--file', longBody],
+    { encoding: 'utf8' }
+  )
+  assert.equal(asBody.status, 0)
+  const badKind = spawnSync(
+    process.execPath,
+    [script, '--kind', 'other', '--file', longBody],
+    { encoding: 'utf8' }
+  )
+  assert.equal(badKind.status, 2)
+  assert.match(badKind.stderr, /--kind must be/)
 
   const inline = spawnSync(process.execPath, [script, 'docs: plain'], {
     encoding: 'utf8'

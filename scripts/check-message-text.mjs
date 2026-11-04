@@ -17,11 +17,31 @@ const CHARACTERS = [
   [';', 'semicolon'],
   ['&', 'ampersand']
 ]
-// Words an older guard reads as a file write inside a quoted message.
-const WRITE_WORDS =
-  /\b(rm|cp|mv|tee|set-content|add-content|out-file|new-item|copy-item|move-item|remove-item)\b/i
-// The one line allowed to hold angle brackets.
-const TRAILER = /^Co-authored-by: [^<>\n]+ <[^<>\s]+>$/
+// Commands a guard reads as a file write inside a quoted message (the writeTargets list in aip-guard.mjs).
+const WRITE_WORDS = [
+  'rm',
+  'cp',
+  'mv',
+  'tee',
+  'install',
+  'touch',
+  'mkdir',
+  'set-content',
+  'add-content',
+  'clear-content',
+  'out-file',
+  'new-item',
+  'copy-item',
+  'move-item',
+  'remove-item'
+]
+const WRITE_PATTERN = new RegExp(
+  String.raw`\b((?:${WRITE_WORDS.join('|')})\b|sed\s+(?:-\S+\s+)*-i)`,
+  'i'
+)
+// The one line allowed to hold angle brackets, and only around the email.
+const TRAILER = /^(Co-authored-by: [^<>\n]+) <([^<>\s]+)>$/
+const KINDS = ['commit', 'title', 'body']
 
 function checkLine(line) {
   const found = []
@@ -35,7 +55,7 @@ function checkLine(line) {
   for (const [char, name] of CHARACTERS) {
     if (rest.includes(char)) found.push(`forbidden ${name} (${char})`)
   }
-  const word = WRITE_WORDS.exec(rest)
+  const word = WRITE_PATTERN.exec(rest)
   if (word) found.push(`forbidden word ${word[1]} (write remove, copy or move)`)
   return found
 }
@@ -43,21 +63,34 @@ function checkLine(line) {
 /**
  * Checks commit or pull request text against the plain-text rule.
  * @param {string} text Commit message, PR title or PR body.
+ * @param {{kind?: 'commit' | 'title' | 'body'}} [options] What the text is; the subject limit applies to a commit message or a title, not a body.
  * @returns {string[]} One readable problem per finding; empty when the text is plain.
  */
-export function checkMessageText(text) {
+export function checkMessageText(text, { kind = 'commit' } = {}) {
+  if (!KINDS.includes(kind))
+    throw new RangeError(`kind must be one of ${KINDS.join(', ')}`)
   const problems = []
   const lines = text.split(/\r?\n/)
-  if (lines[0].length > MAX_SUBJECT)
+  if (kind !== 'body' && lines[0].length > MAX_SUBJECT)
     problems.push(
       `subject is ${lines[0].length} characters, over ${MAX_SUBJECT}`
     )
   lines.forEach((line, index) => {
-    if (TRAILER.test(line)) return
-    for (const problem of checkLine(line))
+    const trailer = TRAILER.exec(line)
+    const checked = trailer ? `${trailer[1]} ${trailer[2]}` : line
+    for (const problem of checkLine(checked))
       problems.push(`line ${index + 1}: ${problem}`)
   })
   return problems
+}
+
+function readKind(args) {
+  const flag = args.indexOf('--kind')
+  if (flag === -1) return { kind: 'commit', rest: args }
+  return {
+    kind: args[flag + 1],
+    rest: args.filter((_, i) => i !== flag && i !== flag + 1)
+  }
 }
 
 function readInput(args) {
@@ -69,7 +102,12 @@ function readInput(args) {
 
 const invoked = process.argv[1] ? resolve(process.argv[1]).toLowerCase() : ''
 if (invoked === fileURLToPath(import.meta.url).toLowerCase()) {
-  const problems = checkMessageText(readInput(process.argv.slice(2)))
+  const { kind, rest } = readKind(process.argv.slice(2))
+  if (!KINDS.includes(kind)) {
+    process.stderr.write(`--kind must be one of ${KINDS.join(', ')}\n`)
+    process.exit(2)
+  }
+  const problems = checkMessageText(readInput(rest), { kind })
   for (const problem of problems) process.stderr.write(`${problem}\n`)
   process.stdout.write(problems.length ? '' : 'Message text is plain\n')
   process.exitCode = problems.length ? 1 : 0

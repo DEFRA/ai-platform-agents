@@ -36,7 +36,7 @@ Write commit subjects and bodies, PR titles and bodies, and review replies in pl
 
 With such text, use plain inline `git commit -m`, `gh pr create --title` and `--body`. A multi-line body may use repeated `-m` or `--body-file` for convenience; writing text to a file first is no longer required. The one exception is the `Co-authored-by` trailer above: its angle brackets are safe inline only once the guard fix for quoted messages is merged, so on an older guard add the trailer through `git commit -F <file>`.
 
-To lint text already in a file or on standard input (never pass text with forbidden characters as an argument, the guard reads that command too): `node <ai-platform-agents>/scripts/check-message-text.mjs --file <path>`. It exits 1 and names each problem by line.
+To lint text already in a file or on standard input (never pass text with forbidden characters as an argument, the guard reads that command too): `node <ai-platform-agents>/scripts/check-message-text.mjs --file <path>`. Add `--kind title` or `--kind body` for a PR title or body: the 72 character subject limit applies only to the default `commit` kind and to titles. It exits 1 and names each problem by line. The trailer line is checked too; only the angle brackets of a standard `Co-authored-by: Name <email>` line are allowed.
 
 ## Pull request
 
