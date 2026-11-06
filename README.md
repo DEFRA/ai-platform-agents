@@ -32,15 +32,16 @@ Pick **AIP Orchestrator** or type `/aip-start` with a requirement or a link to a
 
 The two `/hve-` prompts run the [AI Platform HVE Board](https://github.com/orgs/DEFRA/projects/23) by the guide in `ai-platform-discovery-docs` `docs/hve-board.md`, for example `/hve-create https://github.com/DEFRA/ai-platform-discovery-docs/pull/64 ready` or `/hve-move #42 in progress`. They need `gh` signed in with the `project` scope (`gh auth refresh -s project`).
 
-| Agent                 | Does                                                                        | Model, effort      | Edits                        |
-| --------------------- | --------------------------------------------------------------------------- | ------------------ | ---------------------------- |
-| AIP Orchestrator      | Intake, questions, routing, evidence checks, gates, summary                 | Opus 5.5, medium   | Nothing                      |
-| AIP Planner           | Brief, ACs, user flows, decisions with trade-offs, impact, plan with owners | Opus 5.5, xhigh    | Run folder, plans, discovery |
-| AIP Developer         | Frontend, backend, journey tests, this repo: test-first, GDS, accessible    | Sonnet 5.5, high   | App repos                    |
-| AIP Platform Engineer | Terraform, workflows, environments: tested offline, never applied by hand   | Sonnet 5.5, high   | Platform repos               |
-| AIP Reviewer          | Fresh-context gates, coverage, scans, Sonar, code review, AC proof          | Opus 5.5, medium   | Run folder only              |
-| AIP Releaser          | Commits, PRs, Copilot review loop, CI, releases, GitOps applies             | Sonnet 5.5, medium | Run folder only              |
-| AIP Docs              | Plans, implemented features, READMEs, discovery built state                 | Sonnet 5.5, medium | Markdown and docs            |
+| Agent                         | Does                                                                        | Model, effort      | Edits                        |
+| ----------------------------- | --------------------------------------------------------------------------- | ------------------ | ---------------------------- |
+| AIP Orchestrator              | Intake, questions, routing, evidence checks, gates, summary                 | Opus 5.5, medium   | Nothing                      |
+| AIP Planner                   | Brief, ACs, user flows, decisions with trade-offs, impact, plan with owners | Opus 5.5, xhigh    | Run folder, plans, discovery |
+| AIP Developer                 | Frontend, backend, journey tests, this repo: test-first, GDS, accessible    | Sonnet 5.5, high   | App repos                    |
+| AIP Platform Engineer         | Terraform, workflows, environments: tested offline, never applied by hand   | Sonnet 5.5, high   | Platform repos               |
+| AIP Reviewer                  | Fresh-context gates, coverage, scans, Sonar, code review, AC proof          | Opus 5.5, medium   | Run folder only              |
+| AIP Releaser                  | Commits, PRs, Copilot review loop, CI, releases, GitOps applies             | Sonnet 5.5, medium | Run folder only              |
+| AIP Docs                      | Plans, implemented features, READMEs, discovery built state                 | Sonnet 5.5, medium | Markdown and docs            |
+| AIP Direct Fullstack Engineer | You pick it in chat to work directly, no orchestration; any repo            | Your chat model    | Any repo, as you ask         |
 
 ```mermaid
 flowchart LR
@@ -50,7 +51,7 @@ flowchart LR
   R -- PASS --> Dc[Docs] --> G2{G2} --> Rl[Releaser] --> G3{G3} --> Dep[Deploy] --> Rec[Record]
 ```
 
-When you want to drive the work yourself rather than through autonomous orchestration, pick **defra-app-developer-fullstack** in chat. It can do anything, in any `ai-platform-*` repo (plan, build, test, review, fix, operate), following each repo's own `copilot-instructions.md`. It is human-picked only (AIP Orchestrator and the other AIP agents never use it) and lives only here; the frontend and backend repos no longer carry a copy.
+When you want to drive the work yourself rather than through autonomous orchestration, pick **AIP Direct Fullstack Engineer** in chat. It can do anything, in any `ai-platform-*` repo (plan, build, test, review, fix, operate), names the repo it is working in, and follows that repo's own `copilot-instructions.md`, instructions and skills (frontend and backend each have their own). It is human-picked only (AIP Orchestrator and the other AIP agents never use it) and lives only here; the frontend and backend repos no longer carry a copy.
 
 Skills (`.github/skills/aip-*`), grouped:
 
