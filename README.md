@@ -50,6 +50,8 @@ flowchart LR
   R -- PASS --> Dc[Docs] --> G2{G2} --> Rl[Releaser] --> G3{G3} --> Dep[Deploy] --> Rec[Record]
 ```
 
+When you want to drive the work yourself rather than through autonomous orchestration, pick **defra-app-developer-fullstack** in chat. It can do anything, in any `ai-platform-*` repo (plan, build, test, review, fix, operate), following each repo's own `copilot-instructions.md`. It is human-picked only (AIP Orchestrator and the other AIP agents never use it) and lives only here; the frontend and backend repos no longer carry a copy.
+
 Skills (`.github/skills/aip-*`), grouped:
 
 - **Flow:** `handoff`, `run-control`, `evidence`, `intake`, `plan`, `design`, `change-impact`.
