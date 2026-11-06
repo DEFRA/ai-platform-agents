@@ -32,15 +32,16 @@ Pick **AIP Orchestrator** or type `/aip-start` with a requirement or a link to a
 
 The two `/hve-` prompts run the [AI Platform HVE Board](https://github.com/orgs/DEFRA/projects/23) by the guide in `ai-platform-discovery-docs` `docs/hve-board.md`, for example `/hve-create https://github.com/DEFRA/ai-platform-discovery-docs/pull/64 ready` or `/hve-move #42 in progress`. They need `gh` signed in with the `project` scope (`gh auth refresh -s project`).
 
-| Agent                 | Does                                                                        | Model, effort      | Edits                        |
-| --------------------- | --------------------------------------------------------------------------- | ------------------ | ---------------------------- |
-| AIP Orchestrator      | Intake, questions, routing, evidence checks, gates, summary                 | Opus 5.5, medium   | Nothing                      |
-| AIP Planner           | Brief, ACs, user flows, decisions with trade-offs, impact, plan with owners | Opus 5.5, xhigh    | Run folder, plans, discovery |
-| AIP Developer         | Frontend, backend, journey tests, this repo: test-first, GDS, accessible    | Sonnet 5.5, high   | App repos                    |
-| AIP Platform Engineer | Terraform, workflows, environments: tested offline, never applied by hand   | Sonnet 5.5, high   | Platform repos               |
-| AIP Reviewer          | Fresh-context gates, coverage, scans, Sonar, code review, AC proof          | Opus 5.5, medium   | Run folder only              |
-| AIP Releaser          | Commits, PRs, Copilot review loop, CI, releases, GitOps applies             | Sonnet 5.5, medium | Run folder only              |
-| AIP Docs              | Plans, implemented features, READMEs, discovery built state                 | Sonnet 5.5, medium | Markdown and docs            |
+| Agent                         | Does                                                                        | Model, effort      | Edits                        |
+| ----------------------------- | --------------------------------------------------------------------------- | ------------------ | ---------------------------- |
+| AIP Orchestrator              | Intake, questions, routing, evidence checks, gates, summary                 | Opus 5.5, medium   | Nothing                      |
+| AIP Planner                   | Brief, ACs, user flows, decisions with trade-offs, impact, plan with owners | Opus 5.5, xhigh    | Run folder, plans, discovery |
+| AIP Developer                 | Frontend, backend, journey tests, this repo: test-first, GDS, accessible    | Sonnet 5.5, high   | App repos                    |
+| AIP Platform Engineer         | Terraform, workflows, environments: tested offline, never applied by hand   | Sonnet 5.5, high   | Platform repos               |
+| AIP Reviewer                  | Fresh-context gates, coverage, scans, Sonar, code review, AC proof          | Opus 5.5, medium   | Run folder only              |
+| AIP Releaser                  | Commits, PRs, Copilot review loop, CI, releases, GitOps applies             | Sonnet 5.5, medium | Run folder only              |
+| AIP Docs                      | Plans, implemented features, READMEs, discovery built state                 | Sonnet 5.5, medium | Markdown and docs            |
+| AIP Direct Fullstack Engineer | You pick it in chat to work directly, no orchestration; any repo            | Your chat model    | Any repo, as you ask         |
 
 ```mermaid
 flowchart LR
@@ -49,6 +50,8 @@ flowchart LR
   R -- findings --> D & PE
   R -- PASS --> Dc[Docs] --> G2{G2} --> Rl[Releaser] --> G3{G3} --> Dep[Deploy] --> Rec[Record]
 ```
+
+For work without the Orchestrator, see [Work directly with AIP Direct Fullstack Engineer](#work-directly-with-aip-direct-fullstack-engineer).
 
 Skills (`.github/skills/aip-*`), grouped:
 
@@ -64,6 +67,30 @@ Cost, time and control: `aip-run-control` ends every loop in a named state (a PR
 To stop a mid-run message cancelling running subagents, send it with **Add to Queue** from the Send menu, or set `chat.requestQueuing.defaultAction` to `queue` in your user settings.
 
 Run state lives in `.copilot-tracking/runs/{date}-{slug}/` (git-ignored). The guard hook denies `--no-verify`, force push (including `git -C`), `reset --hard`, local Terraform apply and state changes, PR merges (CLI and MCP), re-runs, `.env` access and hand edits to tenants or deployments state; asks before push, PR, dispatch, Azure writes, recursive deletes and edits to agents, hooks or workspace settings; and limits each agent's edit paths.
+
+## Work directly with AIP Direct Fullstack Engineer
+
+[`aip-direct-fullstack-engineer.agent.md`](.github/agents/aip-direct-fullstack-engineer.agent.md) is for when you want to drive the work yourself, with no autonomous orchestration. It can do any work in any `ai-platform-*` repo: plan, design, build, test, review, fix, document or operate.
+
+- **Human-picked only.** AIP Orchestrator and the other AIP agents never use it (it is not in the Orchestrator allow-list and sets `disable-model-invocation: true`).
+- **One copy.** It lives here only. The frontend and backend repos no longer carry their own.
+- **Names the repo first.** It states which repo or repos the task touches, then reads that repo's `.github/copilot-instructions.md`, the matching file in its `.github/instructions/`, and that repo's own AICE skills. The frontend and backend keep different copies of `javascript-style-guide`, `javascript-testing-standards` and `javascript-review-standards`, so it reads the ones from the repo being edited.
+- **Cross-repo work.** It reads both repos' files and keeps the frontend `api-client.js` calls in step with the backend routes and `code`-based errors.
+- **Asks first.** It asks before any push, pull request or deploy.
+
+Use it in VS Code:
+
+1. Open `defra-ai-platform.code-workspace` so `ai-platform-agents` and the repos you want to change are all open.
+2. In Chat, choose **AIP Direct Fullstack Engineer** in the agent picker.
+3. Say what you want, and the repo if it is not obvious, for example `In the backend, add a POST /api/v1/widgets route with validation`. If it picks the wrong repo, name it or open a file from the right one.
+
+Use it in the Copilot CLI:
+
+```
+copilot --agent aip-direct-fullstack-engineer --add-dir ../ai-platform-frontend --add-dir ../ai-platform-backend-api
+```
+
+It is only listed while this repo is in the workspace (or its folder is added in the CLI). Use AIP Orchestrator instead when a change needs a plan, independent review, a PR and a release.
 
 ## Run the tests
 
