@@ -5,6 +5,11 @@ argument-hint: 'What you want done, and the repo if it is not obvious'
 tools: [vscode, execute, read, agent, edit, search, web, browser, todo]
 user-invocable: true
 disable-model-invocation: true
+hooks:
+  PreToolUse:
+    - type: command
+      command: 'node ../ai-platform-agents/scripts/aip-guard.mjs'
+      timeout: 10
 ---
 
 # AIP Direct Fullstack Engineer
@@ -17,17 +22,17 @@ You do not restate any repo's rules. Each repo's own instructions and skills are
 
 Before reading or editing anything, say which repo or repos the task touches. Decide from the working directory, the `package.json` name, the paths you were given or the files you are editing, and state it in your first reply. Cross-repo work lists every repo; if it is unclear, ask. Never apply one repo's rules to another.
 
-| Repo                                                                                         | Read first                                                                                     |
-| -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `ai-platform-frontend` (`src/server/routes/*/index.njk`, `src/client/`)                      | [copilot-instructions.md](../../../ai-platform-frontend/.github/copilot-instructions.md)       |
-| `ai-platform-backend-api` (`src/routes/`, `src/services/`, `src/adapters/`, no views)        | [copilot-instructions.md](../../../ai-platform-backend-api/.github/copilot-instructions.md)    |
-| `ai-platform-worker` (GitOps worker, SQS commands)                                           | [copilot-instructions.md](../../../ai-platform-worker/.github/copilot-instructions.md)         |
-| `ai-platform-infra` (Terraform, schemas, catalogue)                                          | [copilot-instructions.md](../../../ai-platform-infra/.github/copilot-instructions.md)          |
-| `ai-platform-workflows` (reusable workflows, actions)                                        | [copilot-instructions.md](../../../ai-platform-workflows/.github/copilot-instructions.md)      |
-| `ai-platform-discovery-docs` (design pack, decisions)                                        | [copilot-instructions.md](../../../ai-platform-discovery-docs/.github/copilot-instructions.md) |
-| `ai-platform-environments`, `ai-platform-tenants`, `ai-platform-deployments` (desired state) | that repo's `.github/copilot-instructions.md`                                                  |
-| `ai-platform-agents` (this repo)                                                             | [copilot-instructions.md](../copilot-instructions.md)                                          |
-| `ai-platform-journey-tests`                                                                  | its `README.md` (no instructions file)                                                         |
+| Repo                                                                                            | Read first                                                                                     |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `ai-platform-frontend` (`src/server/routes/*/index.njk`, `src/client/`)                         | [copilot-instructions.md](../../../ai-platform-frontend/.github/copilot-instructions.md)       |
+| `ai-platform-backend-api` (`src/routes/`, `src/services/`, `src/adapters/`, no views)           | [copilot-instructions.md](../../../ai-platform-backend-api/.github/copilot-instructions.md)    |
+| `ai-platform-worker` (the GitOps worker, also called `ai-platform-gitops-worker`; SQS commands) | [copilot-instructions.md](../../../ai-platform-worker/.github/copilot-instructions.md)         |
+| `ai-platform-infra` (Terraform, schemas, catalogue)                                             | [copilot-instructions.md](../../../ai-platform-infra/.github/copilot-instructions.md)          |
+| `ai-platform-workflows` (reusable workflows, actions)                                           | [copilot-instructions.md](../../../ai-platform-workflows/.github/copilot-instructions.md)      |
+| `ai-platform-discovery-docs` (design pack, decisions)                                           | [copilot-instructions.md](../../../ai-platform-discovery-docs/.github/copilot-instructions.md) |
+| `ai-platform-environments`, `ai-platform-tenants`, `ai-platform-deployments` (desired state)    | that repo's `.github/copilot-instructions.md`                                                  |
+| `ai-platform-agents` (this repo)                                                                | [copilot-instructions.md](../copilot-instructions.md)                                          |
+| `ai-platform-journey-tests`                                                                     | its `README.md` (no instructions file)                                                         |
 
 ## 2. Load that repo's instructions and skills
 
