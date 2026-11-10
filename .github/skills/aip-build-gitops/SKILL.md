@@ -27,7 +27,7 @@ The guard hook denies edits under the tenants and deployments `environments/` fo
 
 ## Environments: one name, one way
 
-Only the core environments (`infradev`, later `dev`, `test`, `preprod`, `prod`) exist across `ai-platform-environments`, `-tenants` and `-deployments`: one registry entry, one `environments/{env}/` folder and one GitHub Environment each, named exactly `{env}`. Never add a prefix or suffix Environment (`{env}-events`, `{env}-plan`, `infradev-events`) or a folder for one; a job that must not create a Deployment sets `deployment: false` on `{env}`. `environmentName` in `ai-platform-workflows` (`^[a-z][a-z0-9]{1,15}$`) refuses a hyphenated name. Add one by the checklist in the `ai-platform-workflows` README, "Adding an environment" (registry entry and parameters, infra bootstrap, `repo-settings.sh --environments`, state folders, `--verify`).
+Only the core environments (one per `registry.json` entry; `infradev` today) exist across `ai-platform-environments`, `-tenants` and `-deployments`: one registry entry, one `environments/{env}/` folder and one GitHub Environment each, named exactly `{env}`. Never add a prefix or suffix Environment (`{env}-events`, `{env}-plan`, `infradev-events`) or a folder for one; a job that must not create a Deployment sets `deployment: false` on `{env}`. `environmentName` in `ai-platform-workflows` (`^[a-z][a-z0-9]{1,15}$`) refuses a hyphenated name. Add one by the checklist in the `ai-platform-workflows` README, "Adding an environment" (registry entry and parameters, infra bootstrap, `repo-settings.sh --environments`, state folders, `--verify`).
 
 ## Divergence from the repo rules
 
