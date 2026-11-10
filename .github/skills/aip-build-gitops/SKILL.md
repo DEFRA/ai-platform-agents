@@ -25,6 +25,10 @@ The guard hook denies edits under the tenants and deployments `environments/` fo
 2. Release, then callers (they take minors and patches through `@v1` automatically; a major needs their Dependabot PR).
 3. Environment parameters after the infra release they need; state which environments the change dispatches.
 
+## Environments: one name, one way
+
+Only the core environments (one per `registry.json` entry; `infradev` today) exist across `ai-platform-environments`, `-tenants` and `-deployments`: one registry entry, one `environments/{env}/` folder and one GitHub Environment each, named exactly `{env}`. Never add a prefix or suffix Environment (`{env}-events`, `{env}-plan`, `infradev-events`) or a folder for one; a job that must not create a Deployment sets `deployment: false` on `{env}`. `environmentName` in `ai-platform-workflows` (`^[a-z][a-z0-9]{1,15}$`) refuses a hyphenated name. Add one by the checklist in the `ai-platform-workflows` README, "Adding an environment" (registry entry and parameters, infra bootstrap, `repo-settings.sh --environments`, state folders, `--verify`).
+
 ## Divergence from the repo rules
 
 Defra's CI standard requires Actions pinned to a full commit SHA; these repos pin vendor majors. New or changed `uses:` lines get the SHA with the tag as a comment; flag the untouched rest to the user as a decision, do not repin it unasked.
