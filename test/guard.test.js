@@ -157,6 +157,12 @@ test('restricts edits by role', () => {
   assert.equal(decide(edit(run), 'reviewer').decision, null)
   assert.equal(decide(edit(code), 'reviewer').decision, 'deny')
   assert.equal(decide(edit(code), 'releaser').decision, 'deny')
+  assert.equal(
+    decide(edit(run.replace('review.md', 'designs\\01-start.svg')), 'ux')
+      .decision,
+    null
+  )
+  assert.equal(decide(edit(code), 'ux').decision, 'deny')
   assert.equal(decide(edit(code), 'orchestrator').decision, 'deny')
   assert.equal(decide(edit(code), 'developer').decision, null)
   assert.equal(
