@@ -16,7 +16,7 @@ tools:
     vscode/memory
   ]
 agents: ['Explore']
-model: ['Claude Sonnet 5.5 (copilot)']
+model: ['Claude Sonnet 5.5 (copilot)', 'Claude Sonnet 5 (copilot)']
 reasoning-effort: high
 disable-model-invocation: true
 hooks:
