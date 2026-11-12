@@ -36,6 +36,7 @@ The two `/hve-` prompts run the [AI Platform HVE Board](https://github.com/orgs/
 | ----------------------------- | --------------------------------------------------------------------------- | ------------------ | ---------------------------- |
 | AIP Orchestrator              | Intake, questions, routing, evidence checks, gates, summary                 | Opus 5.5, medium   | Nothing                      |
 | AIP Planner                   | Brief, ACs, user flows, decisions with trade-offs, impact, plan with owners | Opus 5.5, xhigh    | Run folder, plans, discovery |
+| AIP UX Designer               | Job, journey and page designs as SVG wireframes, with accessibility notes   | Sonnet 5.5, high   | Run folder only              |
 | AIP Developer                 | Frontend, backend, journey tests, this repo: test-first, GDS, accessible    | Sonnet 5.5, high   | App repos                    |
 | AIP Platform Engineer         | Terraform, workflows, environments: tested offline, never applied by hand   | Sonnet 5.5, high   | Platform repos               |
 | AIP Reviewer                  | Fresh-context gates, coverage, scans, Sonar, code review, AC proof          | Opus 5.5, medium   | Run folder only              |

@@ -106,6 +106,7 @@ const ROLE_EDIT = {
   orchestrator: { allow: [] },
   reviewer: { allow: [RUN] },
   releaser: { allow: [RUN] },
+  ux: { allow: [RUN] },
   planner: { allow: [RUN, /\/ai-platform-discovery-docs\//] },
   docs: { allow: [RUN, /\.md$/, /\/docs\//, /\/ai-platform-discovery-docs\//] },
   developer: {
