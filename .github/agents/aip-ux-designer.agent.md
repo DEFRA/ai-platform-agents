@@ -59,7 +59,7 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-intake`, `aip-user-flows` (journey, 
 ## SVG standard
 
 - One self-contained file per page and state: `{run}/designs/{nn}-{page}-{state}.svg`, for example `02-team-name-error.svg`. No external fonts, images, scripts or links; `viewBox` set, `role="img"`, `<title>` and `<desc>` that say what the page shows.
-- Canvas 1280 by 800 for desktop and 375 wide for mobile; 8 px grid; GOV.UK Transport falls back to `Arial, Helvetica, sans-serif`; body 19 px, headings 48, 36 or 27 px as the GOV.UK type scale.
+- Canvas 1280 by 800 for desktop and 375 wide for mobile; 8 px grid; font family `Arial, Helvetica, sans-serif`; body 19 px, headings 48, 36 or 27 px as the GOV.UK type scale.
 - Colours from the AICE design language: Defra green `#008531` bars, `#00a33b` service name, GOV.UK blue `#1d70b8` links, text `#0b0c0c`, grey `#f3f2f1` and `#b1b4b6`, focus `#ffdd00`, error `#d4351c`, success `#00703c`. Green is never a link colour. Never carry meaning by colour alone.
 - Annotations sit outside the page frame in a right-hand column in a distinct colour (`#5B21B6` on `#F5F3FF`), numbered; the page frame itself shows only what the service shows.
 - Build each page from named `<g>` groups (header, phase bar, main, footer, annotations) with `id`s so a later edit changes one group, and reuse them across pages instead of redrawing.
