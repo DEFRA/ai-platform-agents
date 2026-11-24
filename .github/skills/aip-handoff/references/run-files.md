@@ -13,7 +13,7 @@ Updated: {yyyy-mm-dd hh:mm} by {agent} | Stage: {plan | build | review | docs | 
 
 ## Now
 
-{One to three lines: what is happening, what is next, what the user must decide.}
+{One to three lines: what is happening, what is next, what the user must decide, and links to relevant decisions and evidence.}
 
 ## Groups
 

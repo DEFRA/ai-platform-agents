@@ -24,7 +24,7 @@ Pick the cheapest proof that exercises the real path:
 
 - Backend: the route's `server.inject` tests pass and cover each AC branch; if not, call the route in a short Vitest run.
 - Frontend: run locally (`npm run dev:mock-oidc` then `npm run dev`), then a time-boxed exploratory check with the browser tool (`aip-test-journey`) walking each AC, error and empty state, and the `aip-accessibility` scan plus keyboard and no-JavaScript checks. Screenshot only when it adds evidence.
-- Journey: `npm run test:local` in `ai-platform-journey-tests` for pre-sign-in specs.
+- Journey: run the affected spec in `ai-platform-journey-tests` using `--spec` (`aip-test-journey`); the unfiltered `npm run test:local` selects both pre-sign-in and post-sign-in specs.
 - Terraform: the tests assert the AC's values; say what a plan would show.
 - Workflows: the integration test covering the path, or a dry run with fake CLIs.
 

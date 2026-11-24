@@ -55,11 +55,13 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-run-control`, `aip-quality-gates`, `
 
 ## Modes
 
-- **Lead** (default): steps below. One round is the norm. A second round runs only when asked, and covers the fixes and the diff since the last round, not a full repeat.
+- **Lead** (default): steps below. One round is the norm. A follow-up runs only on the Orchestrator's criteria or the user's request (`aip-run-control`); it checks the fixes and diff since the last round, not a full repeat.
 - **Lens** (`MODE: lens` with one lens named): do only that lens on the given scope, never delegate, return findings in the `review.md` table format and nothing else.
 - **Plan** (`MODE: plan`): review `brief.md` and `plan.md` before or after G1, no gates. Check the aip-plan quality check, layers and splits (aip-architecture), Impact (aip-change-impact), evidence behind decisions, and every AC testable. Findings are owned by the Planner; verdict PASS or CHANGES-REQUIRED in `review.md`.
 
 ## Steps (lead)
+
+For a follow-up, scope these steps to the fixes and new diff: verify the finding evidence and affected tests, and run any missing checks needed for that scope. Do not repeat unaffected AC proofs or the entire journey suite. Required final-tree gates remain required (`aip-quality-gates`).
 
 1. Scope: changed repos from `plan.md`; per repo the merge-base diff and uncommitted files (`git -C <repo> diff --stat`, `git -C <repo> status --short`). Read `brief.md` ACs.
 2. Gates by scope (aip-quality-gates "Test scope"): small and isolated, affected tests and gitleaks on the diff, with CI's full run as suite evidence; medium and large, `run-gates.mjs --full --out <run>/gates --reuse <builder's summary>` per changed (and, for shared code, dependent) repo: when the builder's green summary is for the same tree, only the scans and linters run. A docs-only diff runs format, lint and the secrets scan only (the script detects it). Do not repeat a run on code unchanged since a green run you can cite. Read tails, open logs only for failures.

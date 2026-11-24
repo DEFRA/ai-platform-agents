@@ -15,7 +15,8 @@ Every stage runs in a fresh context: the Orchestrator starts each as a subagent,
 - Ask only questions whose answer changes scope, design, security or tests; always offer a recommendation. If in doubt, ask; never guess.
 - Ship each PR group in `plan.md` when it passes review, rather than waiting for the whole plan; never bundle unrelated features.
 - Depth by size: **S** one repo, no design change; **M** one or two repos or a contract; **L** cross-repo, design, infra or identity. S skips ceremony: five-line brief, one review pass.
-- Use tools well: search before reading; read large ranges once; run independent reads and Explore subagents in parallel; send long command output to a file and read only what matters; use the gate and scan scripts instead of ad hoc commands.
+- Use tools well: search before reading; read bounded ranges and batch independent reads; limit command output or capture long output to a file and read only what matters. Use the gate and scan scripts instead of ad hoc commands.
+- Handle small, direct lookups yourself. Delegate substantial independent research to Explore with a concrete scope and stopping point; run independent searches in parallel. Never start two writers in the same repo or branch.
 - Write short: tables over prose, links over copies, no restating what a file already says.
 
 ## Evidence rule
@@ -59,12 +60,12 @@ SIZE: S | M | L
 RESUME: yes (only when continuing a cancelled stage; see aip-run-control)
 OBJECTIVE: {one sentence}
 SCOPE: {repos, task ids or finding ids}
-INPUTS: {files to read; the user's answers verbatim}
+INPUTS: {relevant files and sections, brief decisions with evidence links, the user's answers verbatim}
 CONSTRAINTS: {gates approved (G1/G2/G3), paths off limits, PARKED: requests to log under Inbox in state.md, anything not to do}
 DONE WHEN: {measurable outcome}
 ```
 
-Pass paths, ids and the user's words verbatim. Never paste file contents or earlier summaries in full.
+Pass paths, ids and the user's words verbatim; include only decisions relevant to this task and links to their evidence. Never paste file contents or earlier summaries in full. A handoff is a pointer, not evidence: the receiving agent checks the relevant sources and follows its own verification rules.
 
 ## Return contract (agent to Orchestrator), at most 15 lines
 
@@ -90,10 +91,10 @@ NEXT: {recommended next stage, or the main risk}
 
 - **Todo list** for any work of three or more steps: one item per task or finding id from `plan.md`, one `in-progress` at a time, ticked as each finishes. It is the live view; `plan.md` stays the record.
 - **Ask** (user-invoked only) with the ask-questions tool rather than prose questions; delegated agents return `needs-input`.
-- **Explore subagent** for wide read-only searches across repos, so your own context stays small.
+- **Explore subagent** for substantial independent read-only searches, not small lookups or a single continuous trace.
 - **Diagnostics** before claiming done: `read/problems` after edits, `execute/testFailure` for a failing test, `search/usages` and `search/changes` before a rename or a review.
 - **GitHub search** (`githubRepo`, `githubTextSearch`, `github/*`) for proven patterns in DEFRA repositories before inventing one; cite what you used.
 - **Memory** (local to this machine, never shared or reviewed): read it at the start for gotchas and preferences, but treat every entry as a hint to verify, never as evidence. Write only verified, reusable facts with their source: `/memories/repo/` for repo commands and gotchas, `/memories/` for the user's preferences, `/memories/session/` for working notes. The run folder stays the record. Never store secrets, personal data or tenant identifiers. A fact the team needs goes into the repo's instructions by PR, then out of memory.
 - **Browser** to prove behaviour in a real run (pages, PR and CI pages); **web** for dated external sources.
-- Resume: read `state.md`, then the last three `log.md` entries; `brief.md` and `plan.md` only when needed.
+- For an existing run, start with `state.md`, then read the assigned tasks, acceptance criteria and relevant sources. Read `log.md` and other run files only when needed; on resume, read the last three log entries and relevant checkpoints as required by `aip-run-control`.
 - No secrets, tokens, personal data or full resource IDs in any run file.

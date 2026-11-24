@@ -78,7 +78,10 @@ Affected tests:
 | Terraform                             | `terraform -chdir=<changed module or root> test` (`-filter=tests/<file>.tftest.hcl` for one file)                |
 | Journey tests                         | the affected spec only (`aip-test-journey`)                                                                      |
 
-- After a fix, re-run the failing test, then the scope above once; never loop the whole suite.
+- After a review finding is fixed, run its regression or previously failing test and the other affected tests; report evidence per finding. Do not repeat the whole review or suite just to change the verdict (`aip-run-control`).
+- Before the initial build handover and before shipping, satisfy the applicable local scope above for the final changes; required CI gates must pass before merge. Returning a review fix pass needs the affected tests, not another full gate. A prior full run on a different tree is not reusable as a passing gate; run any required missing local gates once for the final tree before shipping.
+- Batch affected test selectors where the runner permits it; capture long output and inspect the failing section rather than repeatedly reading full logs.
+- Before repeating a passing quick gate, use its summary with `--reuse` only when the tree and base still match; a mismatch, missing evidence or a failed run must run the gate again.
 - Small changes still meet changed-file coverage: add `--coverage` to the affected run and read the changed files' lines.
 - Do not run untouched repos, or suites for code the change cannot reach.
 - When unsure whether something is shared, search for its usages; if callers are outside the module, treat it as shared.
@@ -87,6 +90,6 @@ Affected tests:
 ## Rules
 
 - Never weaken a gate to pass: no disabled rules, skipped tests, lowered thresholds or `--no-verify`.
-- Fix the cause, re-run the failing test, then the scope for the change size (above).
+- Fix the cause and run the affected tests; satisfy the change-size scope above before the initial build handover and before shipping.
 - Discovery docs: the script runs `lint` and `test`, and `test` there is only the site build (under a minute), so no coverage is required. It has no required unit or browser tests (its rules, 3 November 2026): never run `npm run check`, `test:site` or `test:browser`, and never add or update its tests.
 - Journey tests need a running frontend, so the script reports them as skipped; see `aip-test-journey`. Accessibility scans: `aip-accessibility`.

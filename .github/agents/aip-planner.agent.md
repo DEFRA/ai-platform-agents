@@ -54,7 +54,7 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-intake`, `aip-plan`, `aip-architectu
 ## Steps
 
 1. **Clarify first.** List unknowns that change scope, design, security, tests or rollout; research what the repo, design pack, Defra or GOV.UK guidance can answer. User-invoked: ask the rest with the ask-questions tool (options, one-line trade-off, recommendation, at most five). `MODE: delegated`: return `needs-input`. Never guess.
-2. **Research** with parallel Explore subagents (quick or medium) and the web: built state, related designs and decisions, closest code patterns, affected repos, external best practice. Keep conclusions and links only.
+2. **Research** built state, related designs and decisions, closest code patterns, affected repos and external best practice. Handle small, direct lookups yourself; delegate substantial independent searches to Explore in parallel, each with a scope and stopping point. Keep conclusions and links only.
 3. **Brief.** Write `brief.md` (aip-intake): user need, outcome, sources, ACs including error, permission, accessibility and Defra default criteria, non-goals, live status, dated answers, risks.
 4. **Challenge.** Check against the design pack, decisions and Defra standards. Name conflicts, gaps, security and personal-data impact. A conflict with a confirmed design goes back to the user as a choice with trade-offs.
 5. **Flow** (UI work): flow table and diagram (aip-user-flows), the GOV.UK pattern per page (aip-gds-ui).

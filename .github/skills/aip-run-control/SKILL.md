@@ -17,10 +17,12 @@ Loops, waits and lost context cost more than the work itself. These rules end ea
 | Release sweep     | One pass over the PRs in the group, acting only on each PR's `pr-state` result    | Start a second "last sweep", or re-mark ready, re-post bodies or re-request what the state does not call for                       |
 | Fix pass          | Every finding has evidence and the affected tests pass                            | Re-run the whole suite or re-review "to be sure"                                                                                   |
 
+The Orchestrator's second-review criteria cover high-risk fixes, changes beyond the finding, missing evidence or failing tests, and a user request. A follow-up checks only the fixes and new diff. After a second round, report unresolved findings and failed or missing evidence; never start a third automatically. Do not call unresolved blockers fixed or skip required final-tree gates.
+
 ## 2. Freshness is by commit, never by clock
 
 - A review covers commits. The round header in `review.md` lists `Reviewed: <repo>@<sha>` (or the tree fingerprint from `run-gates.mjs` when not committed).
-- A later commit is **covered**, and never triggers a review or a hand-off, when it fixes that round's findings with evidence in `log.md`, is docs-only, or is a Releaser push of already-reviewed commits.
+- A later commit is **covered**, and does not by itself trigger a review or hand-off, when it fixes that round's findings with evidence in `log.md`, is docs-only, or is a Releaser push of already-reviewed commits. The Orchestrator's second-review criteria still apply.
 - Copilot likewise: compare the SHA of the newest Copilot review with the PR head (`pr-state.mjs`), not the time of the review with the time of the push.
 
 ## 3. Copilot: one request per head, one batch per round
@@ -34,6 +36,8 @@ Policy is unchanged: request a Copilot review after every push that changes the 
 ## 4. Never wait on the clock
 
 A wait longer than about 15 minutes is **parked**, not polled: write it under Waiting in `state.md` with the time it ends and the exact command to run then, tell the user, and carry on with other groups or stop.
+
+For a bounded command or subagent still running, use completion notifications where available rather than repeated status calls. Work on independent tasks while it runs; do not proceed with dependent work without its result. Park long waits as above.
 
 The 7-day package-age rule is the usual cause. Each repo's `.npmrc` sets `min-release-age=7` (Defra Node standard, `aip-defra-standards`), so npm refuses any version published in the last 7 days (`ETARGET`), and Dependabot waits the same. A fix inside that window is a **deferred bump**:
 

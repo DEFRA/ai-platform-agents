@@ -65,6 +65,10 @@ Skills (`.github/skills/aip-*`), grouped:
 
 Cost, time and control: `aip-run-control` ends every loop in a named state (a PR is `SETTLED`, not "probably done"), checks freshness by commit rather than clock, parks waits instead of polling (the 7-day package-age rule: `min-release-age=7` in `.npmrc` makes npm refuse versions published in the last 7 days), and keeps a one-screen `state.md` so a fresh chat can continue without being handed context. `run-gates.mjs` skips code suites for docs-only changes and reuses a green run of an identical tree (`--reuse`).
 
+Agents handle small lookups directly and delegate substantial independent research with a bounded scope. Handoffs point to the relevant tasks, decisions and evidence rather than copying whole files; agents still verify the sources they need. Reads and test output stay focused, and required reviews and gates are unchanged.
+
+After review, builders run the affected tests and provide evidence for each finding. A follow-up review is limited to the fixes and new diff when the review criteria require it; after a second round, further review needs the person's request. Unresolved blockers, major findings and required gates still block shipping.
+
 To stop a mid-run message cancelling running subagents, send it with **Add to Queue** from the Send menu, or set `chat.requestQueuing.defaultAction` to `queue` in your user settings.
 
 Run state lives in `.copilot-tracking/runs/{date}-{slug}/` (git-ignored). The guard hook denies `--no-verify`, force push (including `git -C`), `reset --hard`, local Terraform apply and state changes, PR merges (CLI and MCP), re-runs, `.env` access and hand edits to tenants or deployments state; asks before push, PR, dispatch, Azure writes, recursive deletes and edits to agents, hooks or workspace settings; and limits each agent's edit paths.

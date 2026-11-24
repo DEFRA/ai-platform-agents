@@ -83,7 +83,7 @@ This is the only place the rule is stated in full; agents point here.
 - A finding only in a review body, not a thread, follows the same split: fix and reply on the PR (there is no thread to resolve) in auto mode, list it in human-only mode.
 - A push round with no comments left open and every thread resolved needs nothing more; a later push that changes the PR is requested again.
 
-For each unresolved thread decide: fix (send it to the owning builder as a finding with a regression test; check the evidence yourself, no re-review unless the fix is a blocker, a contract or shared-code change) or reply with the reason it does not apply. Send all of a PR's fixes to the builder in one batch and push once; a push per thread restarts the cycle each time. Then reply and resolve:
+For each unresolved thread decide: fix (send it to the owning builder as a finding with a regression test; check the evidence yourself, and apply the Orchestrator's follow-up review criteria in `aip-run-control`) or reply with the reason it does not apply. Send all of a PR's fixes to the builder in one batch and push once; a push per thread restarts the cycle each time. Then reply and resolve:
 
 ```powershell
 gh api graphql -f query='mutation($id:ID!,$b:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$id,body:$b}){comment{id}}}' -F id=<threadId> -f b="Fixed in <sha>: <one line>"
