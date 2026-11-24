@@ -69,6 +69,8 @@ Agents handle small lookups directly and delegate substantial independent resear
 
 After review, builders run the affected tests and provide evidence for each finding. A follow-up review is limited to the fixes and new diff when the review criteria require it; after a second round, further review needs the person's request. Unresolved blockers, major findings and required gates still block shipping.
 
+The gate runner blocks concurrent runs in the same worktree, including runs with different output folders. For a stale lock, follow the inspection and recovery steps in `aip-quality-gates`; it never removes an uncertain lock automatically.
+
 To stop a mid-run message cancelling running subagents, send it with **Add to Queue** from the Send menu, or set `chat.requestQueuing.defaultAction` to `queue` in your user settings.
 
 Run state lives in `.copilot-tracking/runs/{date}-{slug}/` (git-ignored). The guard hook denies `--no-verify`, force push (including `git -C`), `reset --hard`, local Terraform apply and state changes, PR merges (CLI and MCP), re-runs, `.env` access and hand edits to tenants or deployments state; asks before push, PR, dispatch, Azure writes, recursive deletes and edits to agents, hooks or workspace settings; and limits each agent's edit paths.

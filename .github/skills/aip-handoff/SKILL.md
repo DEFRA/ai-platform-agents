@@ -16,7 +16,9 @@ Every stage runs in a fresh context: the Orchestrator starts each as a subagent,
 - Ship each PR group in `plan.md` when it passes review, rather than waiting for the whole plan; never bundle unrelated features.
 - Depth by size: **S** one repo, no design change; **M** one or two repos or a contract; **L** cross-repo, design, infra or identity. S skips ceremony: five-line brief, one review pass.
 - Use tools well: search before reading; read bounded ranges and batch independent reads; limit command output or capture long output to a file and read only what matters. Use the gate and scan scripts instead of ad hoc commands.
+- Use only tools available in the current harness; on Windows use its PowerShell tool when Bash is unavailable. Do not repeat a call to a tool that does not exist.
 - Handle small, direct lookups yourself. Delegate substantial independent research to Explore with a concrete scope and stopping point; run independent searches in parallel. Never start two writers in the same repo or branch.
+- Bound long work by coherent tasks or phases. Checkpoint evidence and unfinished work before handing off to a fresh context when needed; never restart active work just to reduce context or omit independent verification.
 - Write short: tables over prose, links over copies, no restating what a file already says.
 
 ## Evidence rule

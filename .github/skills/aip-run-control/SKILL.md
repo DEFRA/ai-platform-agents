@@ -39,6 +39,8 @@ A wait longer than about 15 minutes is **parked**, not polled: write it under Wa
 
 For a bounded command or subagent still running, use completion notifications where available rather than repeated status calls. Work on independent tasks while it runs; do not proceed with dependent work without its result. Park long waits as above.
 
+Do not launch overlapping gate runs in the same worktree. If a gate appears stalled, inspect its progress and owned processes before deciding what to do; a new run is not a diagnosis. The gate runner blocks concurrent runs (`aip-quality-gates`).
+
 The 7-day package-age rule is the usual cause. Each repo's `.npmrc` sets `min-release-age=7` (Defra Node standard, `aip-defra-standards`), so npm refuses any version published in the last 7 days (`ETARGET`), and Dependabot waits the same. A fix inside that window is a **deferred bump**:
 
 1. Find when it becomes eligible: `npm view <package> time --json`, then add 7 days to the version's publish time (PowerShell: `(npm view fast-uri time --json | ConvertFrom-Json).'3.1.9'`).

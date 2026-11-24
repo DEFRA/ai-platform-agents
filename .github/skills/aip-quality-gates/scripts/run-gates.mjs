@@ -8,10 +8,13 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
+  rmdirSync,
   statSync,
+  unlinkSync,
   writeFileSync
 } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { hostname, tmpdir } from 'node:os'
 import { basename, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -819,6 +822,43 @@ function runStep(step, name, outDir, cache) {
   }
 }
 
+function gateLockPath(root) {
+  const gitPath = git(root, ['rev-parse', '--git-path', 'aip-gates.lock'])
+  if (gitPath.status === 0 && gitPath.stdout.trim())
+    return resolve(root, gitPath.stdout.trim())
+  const real = realpathSync(root)
+  const path = process.platform === 'win32' ? real.toLowerCase() : real
+  const hash = createHash('sha256').update(path).digest('hex')
+  return join(tmpdir(), `aip-gates-${hash}.lock`)
+}
+
+function acquireGateLock(root) {
+  const path = gateLockPath(root)
+  try {
+    mkdirSync(path)
+  } catch (error) {
+    if (error.code === 'EEXIST') return { path, acquired: false }
+    throw error
+  }
+  const owner = join(path, 'owner.json')
+  try {
+    writeFileSync(
+      owner,
+      JSON.stringify({
+        pid: process.pid,
+        host: hostname(),
+        root,
+        started: new Date().toISOString()
+      })
+    )
+  } catch (error) {
+    if (existsSync(owner)) unlinkSync(owner)
+    rmdirSync(path)
+    throw error
+  }
+  return { path, owner, acquired: true }
+}
+
 /**
  * Runs the gates for one repository.
  * @param {string[]} args CLI arguments.
@@ -856,55 +896,67 @@ export function runGates(args) {
     return { output: `${lines.join('\n')}\n`, exitCode: 0 }
   }
 
-  const outDir = resolve(argValue(args, '--out', join(tmpdir(), 'aip-gates')))
-  mkdirSync(outDir, { recursive: true })
-  const fingerprint = treeFingerprint(root, outDir, base)
-  const reuseFile = argValue(args, '--reuse', null)
-  let carried = null
-  let reused = []
-  if (reuseFile && !docsOnly) {
-    const earlier = existsSync(reuseFile)
-      ? readFileSync(reuseFile, 'utf8')
-      : null
-    const verdict = reusableSummary(earlier, fingerprint)
-    if (verdict.ok) {
-      const quickIds = planGates(repo, 'quick', base).map((step) => step.id)
-      reused = quickIds.filter((id) => verdict.passed.has(id))
-      steps = steps.filter((step) => !reused.includes(step.id))
-      carried = reused.includes('test') ? verdict.coverageLines : null
-      notes.push(
-        reused.length
-          ? `REUSED ${reused.join(', ')} from ${reuseFile}: same code and base, those gates passed there; the rest run`
-          : `REUSE found nothing to reuse in ${reuseFile}; every gate runs`
-      )
-    } else {
-      notes.push(`REUSE refused: ${verdict.reason}; every gate runs`)
+  const lock = acquireGateLock(root)
+  if (!lock.acquired) {
+    return {
+      output: `BLOCKED: gates are already running for ${root}; inspect ${lock.path} before retrying.\n`,
+      exitCode: 1
     }
   }
-  if (fingerprint) notes.push(`TREE ${fingerprint}`)
+  try {
+    const outDir = resolve(argValue(args, '--out', join(tmpdir(), 'aip-gates')))
+    mkdirSync(outDir, { recursive: true })
+    const fingerprint = treeFingerprint(root, outDir, base)
+    const reuseFile = argValue(args, '--reuse', null)
+    let carried = null
+    let reused = []
+    if (reuseFile && !docsOnly) {
+      const earlier = existsSync(reuseFile)
+        ? readFileSync(reuseFile, 'utf8')
+        : null
+      const verdict = reusableSummary(earlier, fingerprint)
+      if (verdict.ok) {
+        const quickIds = planGates(repo, 'quick', base).map((step) => step.id)
+        reused = quickIds.filter((id) => verdict.passed.has(id))
+        steps = steps.filter((step) => !reused.includes(step.id))
+        carried = reused.includes('test') ? verdict.coverageLines : null
+        notes.push(
+          reused.length
+            ? `REUSED ${reused.join(', ')} from ${reuseFile}: same code and base, those gates passed there; the rest run`
+            : `REUSE found nothing to reuse in ${reuseFile}; every gate runs`
+        )
+      } else {
+        notes.push(`REUSE refused: ${verdict.reason}; every gate runs`)
+      }
+    }
+    if (fingerprint) notes.push(`TREE ${fingerprint}`)
 
-  const since = Date.now() - 1000
-  const cache = {}
-  const results = [
-    ...reused.map((id) => ({ id, result: 'PASS', note: 'reused' })),
-    ...steps.map((step) => runStep(step, name, outDir, cache))
-  ]
-  const fresh = docsOnly
-    ? { lines: ['COVERAGE skipped (docs-only change)'], below: 0 }
-    : (carried && { lines: carried, below: 0 }) ||
-      coverageReport(root, changed, since, requiresCoverage(repo))
-  const summary = summarise(
-    name,
-    mode,
-    results,
-    fresh.lines,
-    fresh.below,
-    notes
-  )
-  writeFileSync(join(outDir, `${name}-summary.txt`), summary)
-  return {
-    output: `${summary}\n`,
-    exitCode: summary.includes('RESULT PASS') ? 0 : 1
+    const since = Date.now() - 1000
+    const cache = {}
+    const results = [
+      ...reused.map((id) => ({ id, result: 'PASS', note: 'reused' })),
+      ...steps.map((step) => runStep(step, name, outDir, cache))
+    ]
+    const fresh = docsOnly
+      ? { lines: ['COVERAGE skipped (docs-only change)'], below: 0 }
+      : (carried && { lines: carried, below: 0 }) ||
+        coverageReport(root, changed, since, requiresCoverage(repo))
+    const summary = summarise(
+      name,
+      mode,
+      results,
+      fresh.lines,
+      fresh.below,
+      notes
+    )
+    writeFileSync(join(outDir, `${name}-summary.txt`), summary)
+    return {
+      output: `${summary}\n`,
+      exitCode: summary.includes('RESULT PASS') ? 0 : 1
+    }
+  } finally {
+    unlinkSync(lock.owner)
+    rmdirSync(lock.path)
   }
 }
 

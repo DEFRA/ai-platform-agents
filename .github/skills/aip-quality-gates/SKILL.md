@@ -15,6 +15,10 @@ node <this skill>/scripts/run-gates.mjs --repo <repo path> --full --out <run fol
 
 `<this skill>` is `ai-platform-agents/.github/skills/aip-quality-gates`. Add `--base <ref>` when the base is not `origin/main` (the script diffs from the merge base), or `--dry-run` to list the planned commands without running them.
 
+The runner allows one gate run per worktree, regardless of mode or output folder. Another run returns `BLOCKED` without running gates; different worktrees can run in parallel. A dry run takes no lock. This does not prevent someone running tests directly.
+
+If a run ended abnormally, its lock may remain. Inspect the reported lock's `owner.json`, confirm that its process and child processes are no longer running on the named host, then remove only that owner file and lock directory before retrying. Do not remove a live or uncertain lock; investigate a stalled run rather than starting another.
+
 | Mode    | Runs                                                                                                                                                                                                                                                                                          | Who                                                                             |
 | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `quick` | exact dependency pins, `format:check`, `lint`, tests (Unix env prefixes handled on Windows), `checks/` in infra, Terraform fmt, validate and tests                                                                                                                                            | Developer and Platform Engineer before handover of medium work                  |
