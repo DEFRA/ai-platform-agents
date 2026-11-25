@@ -58,7 +58,7 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-build-node`, `aip-architecture`, `ai
 ## Steps
 
 1. Read the ACs and your tasks (or `review.md` findings). Unclear: ask (user-invoked) or return `needs-input` (delegated).
-2. Find the closest existing pattern with an Explore subagent (quick); copy its shape.
+2. Find the closest existing pattern yourself for a small, direct search; use Explore for substantial independent research with a scope and stopping point. Copy the pattern's shape.
 3. Per task: list positive, negative and edge cases; write the failing test; smallest change; green; refactor.
 4. Pages: GOV.UK patterns, then `axe-scan.mjs`, keyboard and no-JavaScript checks on the running page.
 5. Test by scope (aip-quality-gates "Test scope"): affected tests while building; before handover, the scope for the change size (`--quick` for medium, `--full` for large, rewrite or shared code), always with `--out <run>/gates` so the Reviewer can reuse the green summary of the same tree. Never weaken a test, rule or threshold.

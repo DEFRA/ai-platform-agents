@@ -529,6 +529,93 @@ test('applies role edit boundaries to terminal writes', () => {
   )
 })
 
+const BACKEND = '/r/ai-platform-backend-api/src/a.js'
+const powerShell = (command) => ({
+  toolName: 'powershell',
+  toolArgs: { command }
+})
+
+test('allows an unquoted PowerShell null redirect without allowing writes to files', () => {
+  const inRepo = (command) => ({
+    ...powerShell(command),
+    cwd: '/r/ai-platform-backend-api'
+  })
+  const command = 'npm audit 2>$null'
+  assert.equal(decide(inRepo(command), 'reviewer').decision, null)
+  assert.equal(
+    decide(inRepo("npm audit 2>'$null'"), 'reviewer').decision,
+    'deny'
+  )
+  assert.equal(
+    decide(inRepo(`npm audit 2>$null; echo x > ${BACKEND}`), 'reviewer')
+      .decision,
+    'deny'
+  )
+  assert.equal(
+    decide(
+      { ...terminal(command), cwd: '/r/ai-platform-backend-api' },
+      'reviewer'
+    ).decision,
+    'deny'
+  )
+  assert.equal(
+    decide(inRepo("bash -c 'echo x >$null'"), 'reviewer').decision,
+    'deny'
+  )
+})
+
+test('checks the explicit path of a simple PowerShell directory creation', () => {
+  const run = '/r/ai-platform-agents/.copilot-tracking/runs/x'
+  assert.equal(
+    decide(
+      powerShell(`New-Item -ItemType Directory -Path "${run}" -Force`),
+      'reviewer'
+    ).decision,
+    null
+  )
+  for (const command of [
+    `New-Item -ItemType Directory -Path "${BACKEND}" -Force`,
+    `New-Item -ItemType Directory -Path "${run}" -Name "../../src"`,
+    `New-Item -ItemType Directory -Path "${run}",${BACKEND}`,
+    'New-Item -ItemType Directory -Path $target'
+  ]) {
+    assert.equal(
+      decide(powerShell(command), 'reviewer').decision,
+      'deny',
+      command
+    )
+  }
+  assert.equal(
+    decide(
+      terminal(`New-Item -ItemType Directory -Path "${run}" -Force`),
+      'reviewer'
+    ).decision,
+    'deny'
+  )
+})
+
+test('checks the path of a simple encoded PowerShell content write', () => {
+  const run = '/r/ai-platform-agents/.copilot-tracking/runs/x/log.md'
+  assert.equal(
+    decide(
+      powerShell(`Set-Content -Encoding UTF8 -Path "${run}" -Value 'done'`),
+      'reviewer'
+    ).decision,
+    null
+  )
+  for (const command of [
+    `Set-Content -Encoding UTF8 -Path "${BACKEND}" -Value 'done'`,
+    `Set-Content -Encoding UTF8 -Path "${run}" -Value 'done' -PassThru`,
+    `Set-Content -Encoding UTF8 -Path "${run}" -Value "$(touch ${BACKEND})"`
+  ]) {
+    assert.equal(
+      decide(powerShell(command), 'reviewer').decision,
+      'deny',
+      command
+    )
+  }
+})
+
 test('does not read text inside commit and PR messages as file writes', () => {
   const messages = [
     'git -C /r/ai-platform-discovery-docs commit -m "docs: token -> check"',
@@ -625,8 +712,6 @@ test('parses quoting before backslashes become path separators', () => {
   )
   denied(String.raw`git commit -m "ok" > C:\r\ai-platform-backend-api\src\a.js`)
 })
-
-const BACKEND = '/r/ai-platform-backend-api/src/a.js'
 
 test('keeps a double-quoted value visible when a backslash-escaped quote makes the quoting ambiguous', () => {
   // PowerShell ends the value at the first inner quote; bash does not. Fail closed.

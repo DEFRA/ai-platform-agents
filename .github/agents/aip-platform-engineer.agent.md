@@ -56,7 +56,7 @@ Skills: `aip-handoff`, `aip-evidence`, `aip-build-terraform`, `aip-build-gitops`
 ## Steps
 
 1. Read the ACs and your tasks (or findings). Unclear: ask (user-invoked) or return `needs-input` (delegated).
-2. Find the nearest module, workflow or test to copy (Explore subagent, quick).
+2. Find the nearest module, workflow or test yourself for a small, direct search; use Explore for substantial independent research with a scope and stopping point.
 3. Write tests first: Terraform positive, negative and edge runs; workflow unit and integration tests with fake CLIs.
 4. Implement; for every address or behaviour change state what a plan would show and the environments and callers it reaches (`aip-change-impact`).
 5. Test by scope (aip-quality-gates "Test scope"): affected modules' `terraform test` and changed scripts' tests while building; before handover, `--quick` for medium, `--full` for large or shared work (modules many roots use, schemas, reusable workflows), always with `--out <run>/gates` so the Reviewer can reuse the green summary of the same tree.

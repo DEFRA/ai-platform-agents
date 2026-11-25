@@ -13,7 +13,8 @@ Repo rules: `ai-platform-journey-tests/.github/instructions/journey-tests.instru
 - One spec per journey in `test/specs/pre-signin/` or `test/specs/post-signin/`; one page object per page in `test/page-objects/` extending `Page`.
 - Select by what a person perceives (heading, label, link or button text, stable `data-testid`); assert title, heading, URL and error summary with WDIO's waiting `expect`.
 - Cover the happy path and the most important unhappy path per journey; leave rules to unit tests.
-- Run: start the frontend, then `npm run test:local`. Post-signin specs need `.env.local` credentials: ask a person to run them and paste the result line.
+- Run: start the frontend and select the affected spec, for example on Windows from `ai-platform-journey-tests`: `npx wdio run wdio.local.conf.js --spec 'test\specs\pre-signin\home-and-models.e2e.js'`. The unfiltered `npm run test:local` selects both pre-signin and post-signin specs.
+- Post-signin specs need the documented mock sign-in setup or a real test account. Ask a person to run tests needing real credentials and paste the result line; never access their `.env.local`.
 - In CDP: the Portal runs the latest build with `PROFILE=smoke` (pre-signin) or `full`.
 
 ## Exploratory check (browser tool), time-boxed

@@ -1,16 +1,22 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { execSync } from 'node:child_process'
+import { execSync, spawn } from 'node:child_process'
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  rmdirSync,
+  unlinkSync,
   utimesSync,
+  watch,
   writeFileSync
 } from 'node:fs'
+import { once } from 'node:events'
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import {
   runGates,
@@ -285,6 +291,130 @@ function greenRepo() {
   git('-c user.name=t -c user.email=t@example.com commit -q -m init')
   return root
 }
+
+test('refuses overlapping gate runs in the same worktree and releases the lock', async () => {
+  const root = greenRepo()
+  const signals = mkdtempSync(join(tmpdir(), 'aip-gate-signals-'))
+  const started = join(signals, 'started')
+  const release = join(signals, 'release')
+  writeFileSync(
+    join(root, 'write-lcov.mjs'),
+    `import { existsSync, mkdirSync, watch, writeFileSync } from 'node:fs'
+const release = ${JSON.stringify(release)}
+writeFileSync(${JSON.stringify(started)}, '')
+if (!existsSync(release)) {
+  await new Promise((resolve) => {
+    const watcher = watch(${JSON.stringify(signals)}, () => {
+      if (existsSync(release)) {
+        watcher.close()
+        resolve()
+      }
+    })
+    if (existsSync(release)) {
+      watcher.close()
+      resolve()
+    }
+  })
+}
+mkdirSync('coverage', { recursive: true })
+writeFileSync('coverage/lcov.info', ${JSON.stringify(FULL_LCOV)})
+`
+  )
+  const script = fileURLToPath(
+    new URL(
+      '../.github/skills/aip-quality-gates/scripts/run-gates.mjs',
+      import.meta.url
+    )
+  )
+  const options = ['--repo', root, '--quick', '--base', 'HEAD']
+  const child = spawn(
+    process.execPath,
+    [script, ...options, '--out', join(signals, 'first')],
+    { stdio: 'ignore' }
+  )
+  const exit = once(child, 'exit')
+  let concurrentExit
+  try {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        watcher.close()
+        reject(new Error('Gate run did not start its test'))
+      }, 30000)
+      const check = () => {
+        if (existsSync(started)) {
+          clearTimeout(timer)
+          watcher.close()
+          resolve()
+        }
+      }
+      const watcher = watch(signals, check)
+      check()
+    })
+    const concurrent = spawn(
+      process.execPath,
+      [script, ...options, '--out', join(signals, 'second')],
+      { stdio: ['ignore', 'pipe', 'pipe'] }
+    )
+    let output = ''
+    concurrent.stdout.on('data', (data) => (output += data))
+    concurrent.stderr.on('data', (data) => (output += data))
+    concurrentExit = once(concurrent, 'close')
+    let timer
+    const result = await Promise.race([
+      concurrentExit,
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(null), 8000)
+      })
+    ])
+    clearTimeout(timer)
+    assert.notEqual(result, null, 'Concurrent gate run did not stop')
+    assert.equal(result[0], 1)
+    assert.match(output, /already running/i)
+    assert.equal(existsSync(join(signals, 'second')), false)
+    const other = greenRepo()
+    const independent = runGates([
+      '--repo',
+      other,
+      '--quick',
+      '--base',
+      'HEAD',
+      '--out',
+      join(signals, 'other')
+    ])
+    assert.equal(independent.exitCode, 0)
+  } finally {
+    writeFileSync(release, '')
+    const [code] = await exit
+    assert.equal(code, 0)
+    if (concurrentExit) await concurrentExit
+  }
+  const later = runGates([...options, '--out', join(signals, 'later')])
+  assert.equal(later.exitCode, 0)
+  const notDirectory = join(signals, 'not-a-directory')
+  writeFileSync(notDirectory, '')
+  assert.throws(() => runGates([...options, '--out', notDirectory]))
+  assert.equal(
+    runGates([...options, '--out', join(signals, 'after-error')]).exitCode,
+    0
+  )
+})
+
+test('reports an existing gate lock without deleting it', () => {
+  const root = greenRepo()
+  const lock = join(root, '.git', 'aip-gates.lock')
+  const owner = join(lock, 'owner.json')
+  mkdirSync(lock)
+  writeFileSync(owner, '{"pid":123}')
+  try {
+    const result = runGates(['--repo', root, '--quick', '--base', 'HEAD'])
+    assert.equal(result.exitCode, 1)
+    assert.match(result.output, /already running/i)
+    assert.equal(readFileSync(owner, 'utf8'), '{"pid":123}')
+  } finally {
+    unlinkSync(owner)
+    rmdirSync(lock)
+  }
+})
 
 test('a docs-only change skips the code suite and coverage, and --scope full brings them back', () => {
   const root = greenRepo()

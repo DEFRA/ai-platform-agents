@@ -228,15 +228,21 @@ const unquote = (token) => token.replace(/^['"]|['"]$/g, '')
 /**
  * Finds files a shell command writes to: redirections, tee, copy/move/set-content style commands and sed -i.
  * @param {string} command Command text.
+ * @param {boolean} [powerShell] Whether the command runs in PowerShell.
  * @returns {string[]}
  */
-export function writeTargets(command) {
+export function writeTargets(command, powerShell = false) {
   const targets = []
   const token = String.raw`("[^"]+"|'[^']+'|[^\s;&|<>()]+)`
+  const simplePowerShell = powerShell && !/['"`\r\n;|&()]/.test(command)
   for (const m of command.matchAll(
     new RegExp(String.raw`(?<![<>&\d])\d?>>?\s*${token}`, 'g')
   )) {
-    if (!m[1].startsWith('&')) targets.push(unquote(m[1]))
+    if (
+      !m[1].startsWith('&') &&
+      !(simplePowerShell && m[1].toLowerCase() === '$null')
+    )
+      targets.push(unquote(m[1]))
   }
   for (const m of command.matchAll(
     new RegExp(String.raw`\btee\s+(?:-\S+\s+)*${token}`, 'gi')
@@ -244,8 +250,24 @@ export function writeTargets(command) {
     targets.push(unquote(m[1]))
   }
   const named = String.raw`(?:set-content|add-content|out-file|new-item|clear-content)\b[^\n;|&]*?(?:-(?:file)?path\s+|-literalpath\s+)?${token}`
+  const simpleDirectory = new RegExp(
+    String.raw`^new-item\s+-itemtype\s+directory\s+-(?:literal)?path\s+${token}(?:\s+-force)?\s*(?=$|[;|&\n])`,
+    'i'
+  )
+  const simpleContent = new RegExp(
+    String.raw`^set-content\s+-encoding\s+(?:utf8|utf8nobom|ascii|unicode)\s+-(?:literal)?path\s+${token}\s+-value\s+${token}\s*(?=$|[;|&\n])`,
+    'i'
+  )
   for (const m of command.matchAll(new RegExp(named, 'gi'))) {
-    targets.push(unquote(m[1]))
+    const rest = command.slice(m.index)
+    const simple = powerShell
+      ? (simpleDirectory.exec(rest) ?? simpleContent.exec(rest))
+      : null
+    const path = simple && unquote(simple[1])
+    const literal = simple && !/[$@`\r\n]/.test(simple[2] ?? '')
+    targets.push(
+      path && literal && !/[$@`*?,\r\n]/.test(path) ? path : unquote(m[1])
+    )
   }
   for (const m of command.matchAll(
     new RegExp(
@@ -380,9 +402,9 @@ function stripMessages(command) {
   return result + command.slice(copied)
 }
 
-function checkWrites(command, role, cwd) {
+function checkWrites(command, role, cwd, tool) {
   const text = stripMessages(command).replace(/\\/g, '/')
-  for (const raw of writeTargets(text)) {
+  for (const raw of writeTargets(text, /^powershell$/i.test(tool))) {
     const path = normalisePath(raw, cwd)
     if (SAFE_WRITE_TARGET.test(path)) continue
     const result = checkPath(raw, 'edit', role, cwd)
@@ -391,7 +413,7 @@ function checkWrites(command, role, cwd) {
   return null
 }
 
-function checkCommand(command, role, cwd) {
+function checkCommand(command, role, cwd, tool) {
   const text = command.replace(/\\/g, '/')
   for (const [pattern, reason] of DENY_COMMANDS) {
     if (pattern.test(text)) return { decision: 'deny', reason }
@@ -399,7 +421,7 @@ function checkCommand(command, role, cwd) {
   if (STATE_PATH.test(text.toLowerCase()) && STATE_WRITE.test(text))
     return { decision: 'deny', reason: STATE_REASON }
   if (mentionsSecretEnv(text)) return { decision: 'deny', reason: ENV_REASON }
-  return checkWrites(command, role, cwd)
+  return checkWrites(command, role, cwd, tool)
 }
 
 function checkPath(raw, kind, role, cwd) {
@@ -437,7 +459,7 @@ export function decide(event, role) {
   const cwd = typeof event?.cwd === 'string' ? event.cwd : undefined
   const { commands, paths } = collectStrings(input)
   const found = [
-    ...commands.map((command) => checkCommand(command, role, cwd)),
+    ...commands.map((command) => checkCommand(command, role, cwd, tool)),
     ...paths.map((path) => checkPath(path, kind, role, cwd))
   ].filter(Boolean)
   const denied = found.find((result) => result.decision === 'deny')
