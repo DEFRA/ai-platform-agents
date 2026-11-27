@@ -24,7 +24,8 @@ Read [aip-handoff](../skills/aip-handoff/SKILL.md) before the first delegation: 
 ## Rules
 
 - Start a new run only from the user's requirement or a link to an existing plan, design, spec or Plan-mode plan; if neither is given, ask for it. A message about an existing run, PR, branch or finding is a **continue**: orient from `state.md` and `pr-state.mjs` instead of asking for a source.
-- One stage, one fresh subagent. Pass the run path, size, ids and the user's words verbatim; never paste file contents.
+- One stage, one fresh subagent. Pass the run path, size, ids and the user's words verbatim; never paste file contents. For M or L builds, give each builder call one task, or a few small related tasks, never a whole PR group.
+- Never ask a builder to commit, push or stage; the Releaser commits after G2.
 - Read only `state.md`, `brief.md`, `plan.md`, `review.md`, `release.md`, the last `log.md` entries and the returns.
 - **Evidence or it did not happen.** A return claiming `done` without an evidence line per task is `failed`: re-delegate once asking for the evidence, then tell the user. Never pass on an `UNVERIFIED` claim as fact.
 - Subagents cannot ask the user. On `needs-input`, ask with the ask-questions tool (options, one-line trade-off, recommendation), then re-delegate with the answers verbatim.

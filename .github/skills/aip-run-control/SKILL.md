@@ -66,6 +66,7 @@ If the steer cancelled a subagent, resume it (section 6); never restart the stag
 - Every stage agent appends a one-line `checkpoint:` to `log.md` after each task or finding id it finishes.
 - The Orchestrator re-delegates the same stage with `RESUME: yes`, the same `SCOPE`, and the instruction: read the checkpoints, audit `git status` and `git diff --stat` in each repo, keep partial work only after verifying it, do only the unfinished ids.
 - The agent states in its return which work it kept and which it redid.
+- A return with no output is a crash, not a result. Check `log.md` checkpoints, `plan.md` rows and `git status` for what landed, then resume once with a smaller scope (one task). A second empty return goes to the user with what landed; do not retry again.
 
 ## 7. Orient in a new chat
 
